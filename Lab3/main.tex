@@ -1,0 +1,358 @@
+\documentclass[a4paper, 14pt]{extarticle}
+
+% Поля
+%--------------------------------------
+\usepackage{geometry}
+\geometry{a4paper,tmargin=2cm,bmargin=2cm,lmargin=3cm,rmargin=1cm}
+%--------------------------------------
+
+\usepackage{float}
+%Russian-specific packages
+%--------------------------------------
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc} 
+\usepackage[english, main=russian]{babel}
+%--------------------------------------
+
+\usepackage{textcomp}
+\usepackage{xcolor}
+
+% Красная строка
+%--------------------------------------
+\usepackage{indentfirst}               
+%--------------------------------------
+%Листинги
+%--------------------------------------
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breakatwhitespace=false,
+  breaklines=true,
+  captionpos=t,
+  inputencoding=utf8,
+  extendedchars=true,
+  literate={а}{а}1{б}{б}1{в}{в}1{г}{г}1{д}{д}1{е}{е}1{ё}{ё}1{ж}{ж}1{з}{з}1{и}{и}1{й}{й}1{к}{к}1{л}{л}1{м}{м}1{н}{н}1{о}{о}1{п}{п}1{р}{р}1{с}{с}1{т}{т}1{у}{у}1{ф}{ф}1{х}{х}1{ц}{ц}1{ч}{ч}1{ш}{ш}1{щ}{щ}1{ъ}{ъ}1{ы}{ы}1{ь}{ь}1{э}{э}1{ю}{ю}1{я}{я}1,
+  frame=single,
+  keepspaces=true,
+  keywordstyle=\bf,
+  numbers=none,
+  xleftmargin=25pt,
+  xrightmargin=25pt,
+  showspaces=false,
+  showstringspaces=false,
+  showtabs=false,
+  stepnumber=1,
+  tabsize=2,
+  title=\lstname
+}
+%--------------------------------------
+\usepackage[most]{tcolorbox}
+\tcbuselibrary{listings,breakable}
+\newtcblisting{breakablelisting}{
+  listing only,
+  breakable,
+  enhanced,
+  frame hidden,
+  colback=white,
+  left=8pt,
+  overlay={\draw[line width=0.4pt] (frame.north west) -- (frame.south west);
+          \draw[line width=0.4pt] ([xshift=3pt]frame.north west) -- ([xshift=3pt]frame.south west);},
+  listing options={
+    frame=none,
+    numbers=none,
+    mathescape=false,
+    texcl=false,
+    inputencoding=utf8,
+    extendedchars=true,
+    literate={а}{а}1{б}{б}1{в}{в}1{г}{г}1{д}{д}1{е}{е}1{ё}{ё}1{ж}{ж}1{з}{з}1{и}{и}1{й}{й}1{к}{к}1{л}{л}1{м}{м}1{н}{н}1{о}{о}1{п}{п}1{р}{р}1{с}{с}1{т}{т}1{у}{у}1{ф}{ф}1{х}{х}1{ц}{ц}1{ч}{ч}1{ш}{ш}1{щ}{щ}1{ъ}{ъ}1{ы}{ы}1{ь}{ь}1{э}{э}1{ю}{ю}1{я}{я}1,
+    literate={\$}{{\$}}1
+  }
+}
+
+
+%Graphics
+%--------------------------------------
+\usepackage{graphicx}
+\usepackage{wrapfig}
+%--------------------------------------
+\graphicspath{{./lab5/}{./}}
+% Полуторный интервал
+%--------------------------------------
+\linespread{1.3}                    
+%--------------------------------------
+
+%Выравнивание и переносы
+%--------------------------------------
+% Избавляемся от переполнений
+\sloppy
+% Запрещаем разрыв страницы после первой строки абзаца
+\clubpenalty=10000
+% Запрещаем разрыв страницы после последней строки абзаца
+\widowpenalty=10000
+%--------------------------------------
+
+%Списки
+\usepackage{enumitem}
+
+%Подписи
+\usepackage{caption} 
+
+%Гиперссылки
+\usepackage{hyperref}
+
+\hypersetup {
+	unicode=true
+}
+
+%Рисунки
+%--------------------------------------
+\DeclareCaptionLabelSeparator*{emdash}{~--- }
+\captionsetup[figure]{labelsep=emdash,font=onehalfspacing,position=bottom}
+%--------------------------------------
+
+\usepackage{tempora}
+
+%--------------------------------------
+
+%%% Математические пакеты %%%
+%--------------------------------------
+\usepackage{amsthm,amsfonts,amsmath,amssymb,amscd}  % Математические дополнения от AMS
+\usepackage{mathtools}                              % Добавляет окружение multlined
+\usepackage[perpage]{footmisc}
+%--------------------------------------
+
+%--------------------------------------
+%			НАЧАЛО ДОКУМЕНТА
+%--------------------------------------
+
+\begin{document}
+
+%--------------------------------------
+%			ТИТУЛЬНЫЙ ЛИСТ
+%--------------------------------------
+\begin{titlepage}
+\thispagestyle{empty}
+\newpage
+
+
+%Шапка титульного листа
+%--------------------------------------
+\vspace*{-60pt}
+\hspace{-65pt}
+\begin{minipage}{0.3\textwidth}
+\hspace*{-20pt}\centering
+\includegraphics[width=\textwidth]{emblem}
+\end{minipage}
+\begin{minipage}{0.67\textwidth}\small \textbf{
+\vspace*{-0.7ex}
+\hspace*{-6pt}\centerline{Министерство науки и высшего образования Российской Федерации}
+\vspace*{-0.7ex}
+\centerline{Федеральное государственное автономное образовательное учреждение }
+\vspace*{-0.7ex}
+\centerline{высшего образования}
+\vspace*{-0.7ex}
+\centerline{<<Московский государственный технический университет}
+\vspace*{-0.7ex}
+\centerline{имени Н.Э. Баумана}
+\vspace*{-0.7ex}
+\centerline{(национальный исследовательский университет)>>}
+\vspace*{-0.7ex}
+\centerline{(МГТУ им. Н.Э. Баумана)}}
+\end{minipage}
+%--------------------------------------
+
+%Полосы
+%--------------------------------------
+\vspace{-25pt}
+\hspace{-35pt}\rule{\textwidth}{2.3pt}
+
+\vspace*{-20.3pt}
+\hspace{-35pt}\rule{\textwidth}{0.4pt}
+%--------------------------------------
+
+\vspace{1.5ex}
+\hspace{-35pt} \noindent \small ФАКУЛЬТЕТ\hspace{80pt} <<Информатика и системы управления>>
+
+\vspace*{-16pt}
+\hspace{47pt}\rule{0.83\textwidth}{0.4pt}
+
+\vspace{0.5ex}
+\hspace{-35pt} \noindent \small КАФЕДРА\hspace{50pt} <<Теоретическая информатика и компьютерные технологии>>
+
+\vspace*{-16pt}
+\hspace{30pt}\rule{0.866\textwidth}{0.4pt}
+  
+\vspace{11em}
+
+\begin{center}
+\Large {\bf Домашняя работа №1} \\ 
+\large {\bf по курсу <<Моделирование>>} \\
+\end{center}\normalsize
+
+\vspace{8em}
+
+
+\begin{flushright}
+  {Студент группы ИУ9-82Б Шемякин В.А. \hspace*{15pt}\\ 
+  \vspace{2ex}
+  Преподаватель Домрачева А.Б.\hspace*{15pt}}
+\end{flushright}
+
+\bigskip
+
+\vfill
+ 
+
+\begin{center}
+\textsl{Москва 2026}
+\end{center}
+\end{titlepage}
+%--------------------------------------
+%		КОНЕЦ ТИТУЛЬНОГО ЛИСТА
+%--------------------------------------
+
+\renewcommand{\ttdefault}{pcr}
+
+\setlength{\tabcolsep}{3pt}
+\newpage
+\setcounter{page}{2}
+\section{Постановка задачи}
+
+Студенты первого курса сдают зачёт по информатике, имея три попытки. Вероятность сдать зачёт с первой попытки равна 0,6, со второй~--- 0,25, с третьей~--- 0,1. В один день зачёт могут сдавать не более 20 человек. Между двумя попытками должно пройти не менее одного дня. Требуется провести вычислительный эксперимент с целью оценки количества студентов, успешно сдавших зачёт за 6 рабочих дней зачётной недели. В эксперименте участвует 80 студентов.
+
+\section{Построение модели}
+
+Модель представляет собой систему массового обслуживания с многоканальным обслуживанием и приоритетной очередью. Заявками в модели являются студенты: каждая попытка сдачи экзамена рассматривается как одна заявка на обслуживание. Источник заявок~--- поток студентов, поступающих на сдачу зачёта. Очередь имеет ограниченную дисциплину: приоритет отдаётся пересдающим. Номер попытки $P_1 \in \{1, 2, 3\}$ задаёт приоритет по формуле $\text{priority} = 4 - P_1$: чем выше номер попытки, тем выше приоритет.
+
+Каналы обслуживания~--- 20 мест для сдачи экзамена: одновременно экзамен могут сдавать не более 20 человек. Время обслуживания~--- 1440 минут (один рабочий день). Заявка, не прошедшая обслуживание (несдача), после задержки 1440 минут возвращается в очередь с увеличенным номером попытки.
+
+Компоненты системы: источник заявок, очередь с приоритетом, устройство обслуживания. Связи: заявки из источника поступают в очередь, при наличии свободного канала занимают его, проходят обслуживание, по результату (успех или неудача) либо покидают систему, либо после задержки возвращаются в очередь.
+
+Вероятности успеха: $p_1 = 0{,}6$, $p_2 = 0{,}25$, $p_3 = 0{,}1$. Ожидаемое число сдавших при неограниченной ёмкости:
+\begin{equation}
+M = n \cdot \bigl( p_1 + (1-p_1) p_2 + (1-p_1)(1-p_2) p_3 \bigr),
+\end{equation}
+где $n$~--- число студентов. При $n = 80$ теоретическое ожидание $M \approx 58$.
+
+\section{Решение вычислительных задач}
+
+Поток заявок формируется источником с интервалом между появлениями, заданным равномерным распределением на отрезке $[48, 96]$ минут и лимитом 80 заявок. Таким образом, 80 студентов поступают в систему постепенно в начале зачётной недели.
+
+Работа потоков заявок: первичный поток направляется в очередь на экзамен. Каждая заявка при входе получает приоритет по номеру попытки и ожидает свободный канал. После обслуживания заявка либо завершается (сдача), либо через задержку 1440 минут возвращается в очередь. Поток пересдач образует возвратные заявки с приоритетом выше первичных. Дополнительно в модели присутствует поток-ограничитель: таймер создаётся в начальный момент, выдерживает 10080 минут и принудительно завершает симуляцию.
+
+\section{Анализ модели}
+
+\refstepcounter{lstlisting}\label{lst:output}
+Листинг~\ref{lst:output}. Вывод работы программы.
+
+\begin{lstlisting}
+              GPSS World Simulation Report - Untitled Model 1.3.1
+
+                   Monday, March 09, 2026 21:15:08  
+
+           START TIME           END TIME  BLOCKS  FACILITIES  STORAGES
+                0.000          10080.000    27        0          1
+
+              NAME                       VALUE  
+          ATTEMPT                         3.000
+          ATTEMPT2                       11.000
+          ATTEMPT3                       13.000
+          EXHAUSTED                      22.000
+          FAILED                         17.000
+          NEXT_DAY                       19.000
+          PASS                        10007.000
+          STOR                        10000.000
+          SUCCESS                        14.000
+          TOO_LATE                       23.000
+
+ LABEL              LOC  BLOCK TYPE     ENTRY COUNT CURRENT COUNT RETRY
+                    1    GENERATE            80             0       0
+                    2    ASSIGN              80             0       0
+ATTEMPT             3    PRIORITY           127             0       0
+                    4    QUEUE              127             0       0
+                    5    ENTER              127             0       0
+                    6    TEST               127             0       0
+                    7    DEPART             111             0       0
+                    8    ADVANCE            111             0       0
+                    9    TEST               111             0       0
+                   10    TRANSFER            80             0       0
+ATTEMPT2           11    TEST                31             0       0
+                   12    TRANSFER            30             0       0
+ATTEMPT3           13    TRANSFER             1             0       0
+SUCCESS            14    SAVEVALUE           52             0       0
+                   15    LEAVE               52             0       0
+                   16    TERMINATE           52             0       0
+FAILED             17    LEAVE               59             0       0
+                   18    TEST                59             0       0
+NEXT_DAY           19    ADVANCE             58            11       0
+                   20    ASSIGN              47             0       0
+                   21    TRANSFER            47             0       0
+EXHAUSTED          22    TERMINATE            1             0       0
+TOO_LATE           23    LEAVE               16             0       0
+                   24    TERMINATE           16             0       0
+
+QUEUE              MAX CONT. ENTRY ENTRY(0) AVE.CONT. AVE.TIME   AVE.(-0) RETRY
+ 1                  18   16    127     43     5.659    449.130    679.042   0
+
+STORAGE            CAP. REM. MIN. MAX.  ENTRIES AVL.  AVE.C. UTIL. RETRY DELAY
+ STOR               20   20   0    20      127   1   15.857  0.793    0    0
+
+SAVEVALUE               RETRY       VALUE
+ PASS                     0         52.000
+\end{lstlisting}
+
+За 6 рабочих дней (8640 минут) и один дополнительный день (до 10080 минут) для завершения экзаменов, начатых в конце недели, модель обработала 80 студентов. Сдали зачёт 52 человека. Всего экзаменационных попыток 111 из максимума 120. 16 студентов получили слот на экзамен после окончания зачётной недели и не были допущены к сдаче. 59 студентов не сдали с первой или второй попытки и перешли к ожиданию следующего дня. 11 заявок на момент окончания симуляции ожидали пересдачу. 1 студент исчерпал три попытки. Загрузка каналов составила 79,3\%.
+
+\section{Вывод}
+В ходе работы была построена модель системы массового обслуживания. Модель была реализована в среде GPSS, а также был проведен анализ модели. Также был проведен вычислительный эксперимент для 80 студентов. Число сдавших зачет оказалось равным 52.
+
+\section{Практическая реализация}
+
+\refstepcounter{lstlisting}\label{lst:gpss}
+Листинг~\ref{lst:gpss}. Исходный код модели.
+
+\begin{lstlisting}
+SIMULATE
+
+STOR    STORAGE 20
+
+        GENERATE 72,24,,80
+        ASSIGN 1,1
+
+ATTEMPT PRIORITY (4-P1)
+        QUEUE 1
+        ENTER STOR,1
+        TEST L AC1,8640,TOO_LATE
+        DEPART 1
+        ADVANCE 1440
+        TEST E P1,1,ATTEMPT2
+        TRANSFER 0.6,FAILED,SUCCESS
+
+ATTEMPT2 TEST E P1,2,ATTEMPT3
+        TRANSFER 0.25,FAILED,SUCCESS
+
+ATTEMPT3 TRANSFER 0.1,FAILED,SUCCESS
+
+SUCCESS SAVEVALUE PASS+,1
+        LEAVE STOR,1
+        TERMINATE 1
+
+FAILED  LEAVE STOR,1
+        TEST L P1,3,EXHAUSTED
+NEXT_DAY ADVANCE 1440
+        ASSIGN 1+,1
+        TRANSFER ,ATTEMPT
+
+EXHAUSTED TERMINATE 1
+
+TOO_LATE LEAVE STOR,1
+        TERMINATE 1
+
+        GENERATE ,,0,1
+        ADVANCE 10080
+        TERMINATE 1000
+
+        RMULT 12345
+        START 80
+\end{lstlisting}
+\end{document}

@@ -1,0 +1,72 @@
+
+
+              GPSS World Simulation Report - Untitled Model 1.9.1
+
+
+                   Monday, March 09, 2026 21:38:35  
+
+           START TIME           END TIME  BLOCKS  FACILITIES  STORAGES
+                0.000          10080.000    27        0          1
+
+
+              NAME                       VALUE  
+          AT2                            11.000
+          AT3                            13.000
+          ATTEMP                          3.000
+          FAIL                           17.000
+          GIVEUP                         22.000
+          LATE                           23.000
+          NXTDAY                         19.000
+          PASS                        10007.000
+          STOR                        10000.000
+          SUCC                           14.000
+
+
+ LABEL              LOC  BLOCK TYPE     ENTRY COUNT CURRENT COUNT RETRY
+                    1    GENERATE            90             0       0
+                    2    ASSIGN              90             0       0
+ATTEMP              3    PRIORITY           135             0       0
+                    4    QUEUE              135             0       0
+                    5    ENTER              135             0       0
+                    6    TEST               135             0       0
+                    7    DEPART             119             0       0
+                    8    ADVANCE            119             0       0
+                    9    TEST               119             0       0
+                   10    TRANSFER            78             0       0
+AT2                11    TEST                41             0       0
+                   12    TRANSFER            29             0       0
+AT3                13    TRANSFER            12             0       0
+SUCC               14    SAVEVALUE           57             0       0
+                   15    LEAVE               57             0       0
+                   16    TERMINATE           57             0       0
+FAIL               17    LEAVE               62             0       0
+                   18    TEST                62             0       0
+NXTDAY             19    ADVANCE             50             5       0
+                   20    ASSIGN              45             0       0
+                   21    TRANSFER            45             0       0
+GIVEUP             22    TERMINATE           12             0       0
+LATE               23    LEAVE               16             0       0
+                   24    TERMINATE           16             0       0
+                   25    GENERATE             1             0       0
+                   26    ADVANCE              1             0       0
+                   27    TERMINATE            1             0       0
+
+
+QUEUE              MAX CONT. ENTRY ENTRY(0) AVE.CONT. AVE.TIME   AVE.(-0) RETRY
+ 1                  22   16    135     53     8.985    670.851   1104.449   0
+
+
+STORAGE            CAP. REM. MIN. MAX.  ENTRIES AVL.  AVE.C. UTIL. RETRY DELAY
+ STOR               20   20   0    20      135   1   17.000  0.850    0    0
+
+
+SAVEVALUE               RETRY       VALUE
+ PASS                     0         57.000                            
+
+
+FEC XN   PRI         BDT      ASSEM  CURRENT  NEXT  PARAMETER    VALUE
+    54    2       10479.410     54     19     20       1          2.000
+    74    1       10553.036     74     19     20       1          1.000
+    58    2       10848.666     58     19     20       1          2.000
+    77    1       11127.982     77     19     20       1          1.000
+    60    2       11207.359     60     19     20       1          2.000
