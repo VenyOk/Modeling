@@ -1,0 +1,406 @@
+\documentclass[a4paper, 14pt]{extarticle}
+
+% Поля
+%--------------------------------------
+\usepackage{geometry}
+\geometry{a4paper,tmargin=2cm,bmargin=2cm,lmargin=3cm,rmargin=1cm}
+%--------------------------------------
+
+\usepackage{float}
+%Russian-specific packages
+%--------------------------------------
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc} 
+\usepackage[english, main=russian]{babel}
+%--------------------------------------
+
+\usepackage{textcomp}
+\usepackage{xcolor}
+
+% Красная строка
+%--------------------------------------
+\usepackage{indentfirst}               
+%--------------------------------------
+%Листинги
+%--------------------------------------
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  breakatwhitespace=false,
+  breaklines=true,
+  captionpos=t,
+  inputencoding=utf8,
+  extendedchars=true,
+  literate={а}{а}1{б}{б}1{в}{в}1{г}{г}1{д}{д}1{е}{е}1{ё}{ё}1{ж}{ж}1{з}{з}1{и}{и}1{й}{й}1{к}{к}1{л}{л}1{м}{м}1{н}{н}1{о}{о}1{п}{п}1{р}{р}1{с}{с}1{т}{т}1{у}{у}1{ф}{ф}1{х}{х}1{ц}{ц}1{ч}{ч}1{ш}{ш}1{щ}{щ}1{ъ}{ъ}1{ы}{ы}1{ь}{ь}1{э}{э}1{ю}{ю}1{я}{я}1,
+  frame=single,
+  keepspaces=true,
+  keywordstyle=\bf,
+  numbers=none,
+  xleftmargin=25pt,
+  xrightmargin=25pt,
+  showspaces=false,
+  showstringspaces=false,
+  showtabs=false,
+  stepnumber=1,
+  tabsize=2,
+  title=\lstname
+}
+%--------------------------------------
+\usepackage[most]{tcolorbox}
+\tcbuselibrary{listings,breakable}
+\newtcblisting{breakablelisting}{
+  listing only,
+  breakable,
+  enhanced,
+  frame hidden,
+  colback=white,
+  left=8pt,
+  overlay={\draw[line width=0.4pt] (frame.north west) -- (frame.south west);
+          \draw[line width=0.4pt] ([xshift=3pt]frame.north west) -- ([xshift=3pt]frame.south west);},
+  listing options={
+    frame=none,
+    numbers=none,
+    mathescape=false,
+    texcl=false,
+    inputencoding=utf8,
+    extendedchars=true,
+    literate={а}{а}1{б}{б}1{в}{в}1{г}{г}1{д}{д}1{е}{е}1{ё}{ё}1{ж}{ж}1{з}{з}1{и}{и}1{й}{й}1{к}{к}1{л}{л}1{м}{м}1{н}{н}1{о}{о}1{п}{п}1{р}{р}1{с}{с}1{т}{т}1{у}{у}1{ф}{ф}1{х}{х}1{ц}{ц}1{ч}{ч}1{ш}{ш}1{щ}{щ}1{ъ}{ъ}1{ы}{ы}1{ь}{ь}1{э}{э}1{ю}{ю}1{я}{я}1,
+    literate={\$}{{\$}}1
+  }
+}
+
+
+%Graphics
+%--------------------------------------
+\usepackage{graphicx}
+\usepackage{wrapfig}
+%--------------------------------------
+\graphicspath{{./lab5/}{./}}
+% Полуторный интервал
+%--------------------------------------
+\linespread{1.3}                    
+%--------------------------------------
+
+%Выравнивание и переносы
+%--------------------------------------
+% Избавляемся от переполнений
+\sloppy
+% Запрещаем разрыв страницы после первой строки абзаца
+\clubpenalty=10000
+% Запрещаем разрыв страницы после последней строки абзаца
+\widowpenalty=10000
+%--------------------------------------
+
+%Списки
+\usepackage{enumitem}
+
+%Подписи
+\usepackage{caption} 
+
+%Гиперссылки
+\usepackage{hyperref}
+
+\hypersetup {
+	unicode=true
+}
+
+%Рисунки
+%--------------------------------------
+\DeclareCaptionLabelSeparator*{emdash}{~--- }
+\captionsetup[figure]{labelsep=emdash,font=onehalfspacing,position=bottom}
+%--------------------------------------
+
+\usepackage{tempora}
+
+%--------------------------------------
+
+%%% Математические пакеты %%%
+%--------------------------------------
+\usepackage{amsthm,amsfonts,amsmath,amssymb,amscd}  % Математические дополнения от AMS
+\usepackage{mathtools}                              % Добавляет окружение multlined
+\usepackage[perpage]{footmisc}
+%--------------------------------------
+
+%--------------------------------------
+%			НАЧАЛО ДОКУМЕНТА
+%--------------------------------------
+
+\begin{document}
+
+%--------------------------------------
+%			ТИТУЛЬНЫЙ ЛИСТ
+%--------------------------------------
+\begin{titlepage}
+\thispagestyle{empty}
+\newpage
+
+
+%Шапка титульного листа
+%--------------------------------------
+\vspace*{-60pt}
+\hspace{-65pt}
+\begin{minipage}{0.3\textwidth}
+\hspace*{-20pt}\centering
+\includegraphics[width=\textwidth]{emblem}
+\end{minipage}
+\begin{minipage}{0.67\textwidth}\small \textbf{
+\vspace*{-0.7ex}
+\hspace*{-6pt}\centerline{Министерство науки и высшего образования Российской Федерации}
+\vspace*{-0.7ex}
+\centerline{Федеральное государственное автономное образовательное учреждение }
+\vspace*{-0.7ex}
+\centerline{высшего образования}
+\vspace*{-0.7ex}
+\centerline{<<Московский государственный технический университет}
+\vspace*{-0.7ex}
+\centerline{имени Н.Э. Баумана}
+\vspace*{-0.7ex}
+\centerline{(национальный исследовательский университет)>>}
+\vspace*{-0.7ex}
+\centerline{(МГТУ им. Н.Э. Баумана)}}
+\end{minipage}
+%--------------------------------------
+
+%Полосы
+%--------------------------------------
+\vspace{-25pt}
+\hspace{-35pt}\rule{\textwidth}{2.3pt}
+
+\vspace*{-20.3pt}
+\hspace{-35pt}\rule{\textwidth}{0.4pt}
+%--------------------------------------
+
+\vspace{1.5ex}
+\hspace{-35pt} \noindent \small ФАКУЛЬТЕТ\hspace{80pt} <<Информатика и системы управления>>
+
+\vspace*{-16pt}
+\hspace{47pt}\rule{0.83\textwidth}{0.4pt}
+
+\vspace{0.5ex}
+\hspace{-35pt} \noindent \small КАФЕДРА\hspace{50pt} <<Теоретическая информатика и компьютерные технологии>>
+
+\vspace*{-16pt}
+\hspace{30pt}\rule{0.866\textwidth}{0.4pt}
+  
+\vspace{11em}
+
+\begin{center}
+\Large {\bf Лабораторная работа №1} \\ 
+\large {\bf по курсу <<Моделирование>>} \\
+\large <<Построение аналитической статической модели>> 
+\end{center}\normalsize
+
+\vspace{8em}
+
+
+\begin{flushright}
+  {Студент группы ИУ9-82Б Шемякин В.А. \hspace*{15pt}\\ 
+  \vspace{2ex}
+  Преподаватель Домрачева А.Б.\hspace*{15pt}}
+\end{flushright}
+
+\bigskip
+
+\vfill
+ 
+
+\begin{center}
+\textsl{Москва 2026}
+\end{center}
+\end{titlepage}
+%--------------------------------------
+%		КОНЕЦ ТИТУЛЬНОГО ЛИСТА
+%--------------------------------------
+
+\renewcommand{\ttdefault}{pcr}
+
+\setlength{\tabcolsep}{3pt}
+\newpage
+\setcounter{page}{2}
+\section{Постановка задачи}
+
+Провести сгущение регулярной сетки размера $n\times n$: построить интерполяционную функцию по узлам исходной сетки, выполнить уточнение (добавление промежуточных точек), оценить среднюю абсолютную погрешность и визуализировать результат. Начальные условия: размер сетки $n$, интерполируемая функция $z = f(x, y)$, диапазоны значений $x$ и $y$.
+
+Исходные данные: $n = 10$ (по каждой оси $n$ частей, сетка $(n+1) \times (n+1)$ узлов); диапазон по $x$: $[-3, 3]$, по $y$: $[-3, 3]$; интерполируемая функция $z = f(x, y) = \sin\bigl(\sqrt{x^2 + y^2}\bigr)$. 
+
+\section{Построение математической модели}
+
+\paragraph{Исходные данные.} Задана регулярная сетка узлов: по оси $x$ точки $x_0 < x_1 < \ldots < x_n$, по оси $y$~--- $y_0 < y_1 < \ldots < y_n$. В каждом узле $(x_i, y_j)$ задано значение $z_{ij}$. Область разбита на ячейки~--- прямоугольники $[x_i, x_{i+1}] \times [y_j, y_{j+1}]$.
+
+\paragraph{Бикубический сплайн.} Интерполяционная функция $S(x, y)$ строится как дважды непрерывно дифференцируемая функция ($S \in C^2$), обладающая следующими свойствами. На каждой ячейке $[x_i, x_{i+1}] \times [y_j, y_{j+1}]$ $S$ является полиномом двух переменных степени не выше 3 по $x$ и не выше 3 по $y$:
+\begin{equation}
+S(x, y) = \sum_{k=0}^{3} \sum_{l=0}^{3} a_{kl}^{(ij)} \, (x - x_i)^k (y - y_j)^l, \quad (x,y) \in [x_i, x_{i+1}] \times [y_j, y_{j+1}].
+\label{eq:spline}
+\end{equation}
+Коэффициенты $a_{kl}^{(ij)}$ однозначно определяются из двух групп условий.
+
+Условия интерполяции: в каждом узле сетки значение $S$ совпадает с заданным,
+\begin{equation}
+S(x_i, y_j) = z_{ij}, \quad i = 0, \ldots, n,\; j = 0, \ldots, n.
+\end{equation}
+
+Условия гладкого склеивания на границах соседних ячеек: на каждой вертикальной границе $x = x_{i+1}$ и горизонтальной границе $y = y_{j+1}$ совпадают значения самой функции и её частных производных до второго порядка включительно. Для границы по $x$ между ячейками $(i,j)$ и $(i+1,j)$ при $y \in [y_j, y_{j+1}]$ требуются равенства (индексы $\mp$~--- пределы слева и справа по $x$):
+\begin{equation}
+\begin{aligned}
+S\big|_{-} &= S\big|_{+}, \quad \frac{\partial S}{\partial x}\bigg|_{-} = \frac{\partial S}{\partial x}\bigg|_{+}, \quad \frac{\partial S}{\partial y}\bigg|_{-} = \frac{\partial S}{\partial y}\bigg|_{+};\\
+\frac{\partial^2 S}{\partial x^2}\bigg|_{-} &= \frac{\partial^2 S}{\partial x^2}\bigg|_{+}, \quad \frac{\partial^2 S}{\partial x \partial y}\bigg|_{-} = \frac{\partial^2 S}{\partial x \partial y}\bigg|_{+}, \quad \frac{\partial^2 S}{\partial y^2}\bigg|_{-} = \frac{\partial^2 S}{\partial y^2}\bigg|_{+}.
+\end{aligned}
+\end{equation}
+Аналогичные условия задаются на границах по $y$. Аналогичные условия задаются на границах по $y$. Число неизвестных коэффициентов $a_{kl}^{(ij)}$ (по 16 на ячейку) совпадает с числом линейных уравнений, получаемых из этих условий; система невырождена, поэтому $S$ однозначно восстанавливается по сетке $\{z_{ij}\}$. В любой точке области значение $S(x, y)$ задаётся полиномиальной формулой~\eqref{eq:spline} на той ячейке, которой принадлежит $(x, y)$.
+
+\paragraph{Сгущение сетки.} Уточнённая сетка получается добавлением к исходным узлам середин отрезков: по $x$ добавляются точки $\widetilde{x}_i = (x_i + x_{i+1})/2$, по $y$~--- $\widetilde{y}_j = (y_j + y_{j+1})/2$. В новых точках значение поля задаётся интерполяционной функцией: в точке $(\widetilde{x}_i, \widetilde{y}_j)$ полагается $z = S(x, y)$. В исходных узлах сохраняются заданные значения $z_{ij}$. В результате получается сетка с узлами по каждой оси в два раза плотнее исходной.
+
+\section{Разбиение на вычислительные задачи}
+
+\subsection{Построение сетки и расчёт значений в узлах}
+Область $[-3, 3]$ по каждой оси разбивается на 10 равных частей, получаются координаты узлов по осям $x$ и $y$. Все комбинации узлов дают регулярную сетку $10 \times 10$. В каждом узле вычисляется $z = f(x, y) = \sin(\sqrt{x^2 + y^2})$.
+
+\subsection{Бикубическая интерполяция и уточнение сетки}
+По узлам $(x_i, y_j)$ и значениям $z_{ij}$ строится бикубический сплайн. Координаты уточнённой сетки: исходные узлы и середины между соседними узлами. В узлах уточнённой сетки значения берутся из исходных данных (где узел совпадает с исходным) или со сплайна.
+
+\subsection{Оценка погрешности}
+Средняя абсолютная погрешность вычисляется по формуле
+\begin{equation}
+E_{\text{ср}} = \frac{1}{N} \sum_{k=1}^{N} \bigl| z_{\text{интерп}}(x_k, y_k) - f(x_k, y_k) \bigr|,
+\end{equation}
+где $N$~--- число точек выбранного набора; $(x_k, y_k)$~--- координаты этих точек (исходные узлы и центры ячеек либо только центры ячеек); $z_{\text{интерп}}$~--- значение интерполяционной функции в точке $(x_k, y_k)$; $f$~--- точная функция. Считаются два варианта: с учётом исходных узлов и без них.
+
+\section{Анализ модели}
+
+Визуализация интерполяционной функции на уточнённой сетке в виде тепловой карты представлена на рисунке~\ref{fig:result}.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.75\textwidth]{Lab2/screen1.png}
+  \caption{Узлы сетки и центры ячеек}
+  \label{fig:result}
+\end{figure}
+
+Результаты расчёта средней абсолютной погрешности интерполяции: с учётом исходных узлов~--- $0{,}0036438606048676$; без учёта исходных~--- $0{,}008141869202087699$.
+
+\section{Вывод}
+
+В ходе лабораторной работы была спроектирована математическая модель для решения задачи сгущения сетки. Для решения задачи использовались бикубические сплайны. При анализе модели была проведена оценка работы модели. Модель отработала корректно, продемонстрировав высокую точность.
+
+\section{Практическая реализация}
+
+\refstepcounter{lstlisting}\label{lst:code}
+\noindent Листинг~\ref{lst:code}. Исходный код программы.
+
+\begin{breakablelisting}
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import RectBivariateSpline
+
+
+def f(x, y):
+    r = np.sqrt(x**2 + y**2)
+    return np.sin(r)
+
+
+def make_grid(nx, ny, x_min, x_max, y_min, y_max):
+    x = np.linspace(x_min, x_max, nx + 1)
+    y = np.linspace(y_min, y_max, ny + 1)
+    return x, y
+
+
+def get_refined_coords(x, y):
+    nx, ny = len(x) - 1, len(y) - 1
+    x_ref = np.empty(2 * nx + 1)
+    y_ref = np.empty(2 * ny + 1)
+    for i in range(nx):
+        x_ref[2 * i] = x[i]
+        x_ref[2 * i + 1] = 0.5 * (x[i] + x[i + 1])
+    x_ref[2 * nx] = x[nx]
+    for j in range(ny):
+        y_ref[2 * j] = y[j]
+        y_ref[2 * j + 1] = 0.5 * (y[j] + y[j + 1])
+    y_ref[2 * ny] = y[ny]
+    return x_ref, y_ref
+
+
+def refine_grid_interp(x, y, z, interp):
+    nx, ny = len(x) - 1, len(y) - 1
+    centers_x = []
+    centers_y = []
+    z_centers = []
+    for i in range(nx):
+        for j in range(ny):
+            xc = 0.5 * (x[i] + x[i + 1])
+            yc = 0.5 * (y[j] + y[j + 1])
+            zc = interp.ev(xc, yc)
+            centers_x.append(xc)
+            centers_y.append(yc)
+            z_centers.append(zc)
+    return np.array(centers_x), np.array(centers_y), np.array(z_centers), interp
+
+
+def build_refined_grid(x, y, z, interp, levels=1):
+    nx, ny = len(x) - 1, len(y) - 1
+    x_ref, y_ref = get_refined_coords(x, y)
+    nrx, nry = 2 * nx + 1, 2 * ny + 1
+    z_ref = np.empty((nrx, nry))
+    for i in range(nrx):
+        for j in range(nry):
+            if i % 2 == 0 and j % 2 == 0:
+                z_ref[i, j] = z[i // 2, j // 2]
+            else:
+                z_ref[i, j] = interp.ev(x_ref[i], y_ref[j])
+    if levels > 1:
+        _, _, _, interp_next = refine_grid_interp(x_ref, y_ref, z_ref, RectBivariateSpline(x_ref, y_ref, z_ref, kx=3, ky=3, s=0))
+        return build_refined_grid(x_ref, y_ref, z_ref, interp_next, levels=levels - 1)
+    return x_ref, y_ref, z_ref
+
+
+def main():
+    nx, ny = 9, 9
+    x_min, x_max = -3.0, 3.0
+    y_min, y_max = -3.0, 3.0
+    x, y = make_grid(nx, ny, x_min, x_max, y_min, y_max)
+    X, Y = np.meshgrid(x, y, indexing="ij")
+    z = f(X, Y)
+    nodal_err = 1e-6
+    rng = np.random.default_rng(42)
+    z_noisy = z + rng.uniform(-nodal_err, nodal_err, z.shape)
+
+    X_nodes, Y_nodes = np.meshgrid(x, y, indexing="ij")
+    centers_x = np.array([0.5 * (x[i] + x[i + 1]) for i in range(nx) for j in range(ny)])
+    centers_y = np.array([0.5 * (y[j] + y[j + 1]) for i in range(nx) for j in range(ny)])
+    x_all = np.concatenate([X_nodes.ravel(), centers_x])
+    y_all = np.concatenate([Y_nodes.ravel(), centers_y])
+    z_true_nodes = f(x_all, y_all)
+    z_true_centers = f(centers_x, centers_y)
+
+    interp = RectBivariateSpline(x, y, z_noisy, kx=3, ky=3, s=0)
+    z_interp_all = interp.ev(x_all, y_all)
+    z_interp_centers = interp.ev(centers_x, centers_y)
+    mean_with = np.mean(np.abs(z_interp_all - z_true_nodes))
+    mean_without = np.mean(np.abs(z_interp_centers - z_true_centers))
+    print("с учётом исходных:", mean_with)
+    print("без исходных:", mean_without)
+    centers_x, centers_y, z_centers, interp = refine_grid_interp(x, y, z_noisy, interp)
+    x_ref, y_ref, z_ref = build_refined_grid(x, y, z_noisy, interp)
+
+    fig, ax = plt.subplots()
+    x_edges = np.concatenate([x_ref, [2 * x_ref[-1] - x_ref[-2]]])
+    y_edges = np.concatenate([y_ref, [2 * y_ref[-1] - y_ref[-2]]])
+    im = ax.pcolormesh(x_edges, y_edges, z_ref, shading="flat")
+    plt.colorbar(im, ax=ax, label="z")
+    X_nodes, Y_nodes = np.meshgrid(x, y, indexing="ij")
+    ax.scatter(X_nodes.ravel(), Y_nodes.ravel(), c="white", s=40, edgecolors="black", linewidths=0.8, label="узлы сетки", zorder=2)
+    ax.scatter(centers_x, centers_y, c="red", marker="x", s=30, label="центры ячеек", zorder=2)
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(y_min, y_max)
+    ax.legend()
+    ax.set_aspect("equal")
+    fig.savefig("result.png", dpi=150)
+    plt.close(fig)
+
+
+if __name__ == "__main__":
+    main()
+\end{breakablelisting}
+
+\end{document}
