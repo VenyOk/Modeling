@@ -43,34 +43,10 @@
   showstringspaces=false,
   showtabs=false,
   stepnumber=1,
-  tabsize=2,
-  title=\lstname
+  tabsize=2
 }
+\renewcommand{\lstlistingname}{Листинг}
 %--------------------------------------
-\usepackage[most]{tcolorbox}
-\tcbuselibrary{listings,breakable}
-\newtcblisting{breakablelisting}{
-  listing only,
-  breakable,
-  enhanced,
-  frame hidden,
-  colback=white,
-  left=8pt,
-  overlay={\draw[line width=0.4pt] (frame.north west) -- (frame.south west);
-          \draw[line width=0.4pt] ([xshift=3pt]frame.north west) -- ([xshift=3pt]frame.south west);},
-  listing options={
-    frame=none,
-    numbers=none,
-    mathescape=false,
-    texcl=false,
-    inputencoding=utf8,
-    extendedchars=true,
-    literate={а}{а}1{б}{б}1{в}{в}1{г}{г}1{д}{д}1{е}{е}1{ё}{ё}1{ж}{ж}1{з}{з}1{и}{и}1{й}{й}1{к}{к}1{л}{л}1{м}{м}1{н}{н}1{о}{о}1{п}{п}1{р}{р}1{с}{с}1{т}{т}1{у}{у}1{ф}{ф}1{х}{х}1{ц}{ц}1{ч}{ч}1{ш}{ш}1{щ}{щ}1{ъ}{ъ}1{ы}{ы}1{ь}{ь}1{э}{э}1{ю}{ю}1{я}{я}1,
-    literate={\$}{{\$}}1
-  }
-}
-
-
 %Graphics
 %--------------------------------------
 \usepackage{graphicx}
@@ -109,6 +85,7 @@
 %--------------------------------------
 \DeclareCaptionLabelSeparator*{emdash}{~--- }
 \captionsetup[figure]{labelsep=emdash,font=onehalfspacing,position=bottom}
+\captionsetup[lstlisting]{labelsep=period}
 %--------------------------------------
 
 \usepackage{tempora}
@@ -144,7 +121,7 @@
 \hspace{-65pt}
 \begin{minipage}{0.3\textwidth}
 \hspace*{-20pt}\centering
-\includegraphics[width=\textwidth]{emblem}
+\IfFileExists{emblem.png}{\includegraphics[width=\textwidth]{emblem.png}}{\IfFileExists{emblem.pdf}{\includegraphics[width=\textwidth]{emblem.pdf}}{\rule{0pt}{3cm}}}
 \end{minipage}
 \begin{minipage}{0.67\textwidth}\small \textbf{
 \vspace*{-0.7ex}
@@ -188,9 +165,9 @@
 \vspace{11em}
 
 \begin{center}
-\Large {\bf Лабораторная работа №2} \\
+\Large {\bf Лабораторная работа №3} \\
 \large {\bf по курсу <<Моделирование>>} \\
-\large <<Оценивание функций связи между ненаблюдаемыми одновременно параметрами>>
+\large <<Построение стохастической модели в заданной предметной области>>
 \end{center}\normalsize
 
 \vspace{8em}
@@ -215,133 +192,475 @@
 %		КОНЕЦ ТИТУЛЬНОГО ЛИСТА
 %--------------------------------------
 
-\renewcommand{\ttdefault}{pcr}
-
 \setlength{\tabcolsep}{3pt}
 \newpage
 \setcounter{page}{2}
 
 \section{Постановка задачи}
 
-Цель лабораторной работы заключается в классификации объектов по входным данным из файла \texttt{diabetes.csv} с предварительным выявлением зависимых признаков и последующим сокращением размерности пространства признаков. Тема работы: <<Построение стохастическое модели в заданной предметной области>>.
+Целью данной лабораторной работы является кластеризация объектов по входным данным, представленным в файле diabetes.csv.
 
-Для анализа взаимосвязи бинаризованных признаков используются соотношения
-\begin{equation}
-P(AB)_{\text{завис}} = P(B) \cdot P(A \mid B),
-\end{equation}
-\begin{equation}
-P(AB)_{\text{независ}} = P(A) \cdot P(B).
-\end{equation}
-Если совместная вероятность ближе к первому выражению, признаки рассматриваются как зависимые; если выполняется второе соотношение, признаки считаются независимыми.
-
-В работе используются столбцы \texttt{Pregnancies}, \texttt{Glucose}, \texttt{BloodPressure}, \texttt{SkinThickness}, \texttt{Insulin}, \texttt{BMI}, \texttt{DiabetesPedigreeFunction}, \texttt{Age} и целевая метка \texttt{Outcome}. Требуется получить компактное представление объектов, снизить размерность задачи, перейти к двум координатам для визуализации и разделить объекты на два класса методом \texttt{k-means}.
-
-Этапы выполнения лабораторной работы следующие:
+Необходимо выполнить следующее:
 \begin{enumerate}[label=\arabic*.]
-  \item выбор бинаризации показателей;
-  \item выбор коэффициента взаимосвязи показателей;
-  \item сокращение размерности задачи при наличии зависимых признаков;
-  \item кластеризация данных по методу \texttt{k-means};
-  \item интерпретация полученных классов по уровням исходных показателей.
+  \item Выбор бинаризации показателей.
+  \item Выбор коэффициента взаимосвязи показателей.
+  \item Сокращение размерности задачи при наличии зависимых признаков.
+  \item Кластеризация данных по методу k-means.
+  \item Интерпретация полученных классов.
 \end{enumerate}
+
+Ссылка на набор данных:
+\url{https://drive.google.com/drive/folders/1ziAhYiu85_K2Jjls3zxLayfpvvW61Gxf?usp=drive_link}.
 
 \section{Построение модели}
 
-На первом этапе исходные числовые признаки бинаризуются по медианным порогам. Для каждого объекта значение признака заменяется логическим признаком <<выше медианы / не выше медианы>>. В рассматриваемом наборе данных использованы следующие медианы:
+На первом этапе числовые признаки переводятся в бинарную форму. Рассматривались два способа задания порога:
+\[
+z_i =
+\begin{cases}
+1, & x_i > \overline{x},\\
+0, & x_i \le \overline{x},
+\end{cases}
+\qquad
+\overline{x} = \frac{1}{n}\sum_{i=1}^{n}x_i.
+\]
+\[
+z_i =
+\begin{cases}
+1, & x_i > M(x),\\
+0, & x_i \le M(x).
+\end{cases}
+\]
+Здесь $x_i$ --- значение признака для $i$-го объекта, $z_i$ --- бинаризованное значение, $\overline{x}$ --- среднее значение признака по выборке, $M(x)$ --- медиана признака, $n$ --- число объектов.
+
+В результате в работе принята бинаризация по медиане. Для каждого объекта значение признака заменяется логическим показателем <<выше медианы / не выше медианы>>. В рассматриваемом наборе данных использованы следующие медианные пороги:
 \begin{center}
 \begin{tabular}{|l|c|l|c|}
 \hline
 Признак & Медиана & Признак & Медиана \\
 \hline
-\texttt{Pregnancies} & 3 & \texttt{Insulin} & 30.5 \\
-\texttt{Glucose} & 117 & \texttt{BMI} & 32 \\
-\texttt{BloodPressure} & 72 & \texttt{DiabetesPedigreeFunction} & 0.3725 \\
-\texttt{SkinThickness} & 23 & \texttt{Age} & 29 \\
+Pregnancies & 3 & Insulin & 30.5 \\
+Glucose & 117 & BMI & 32 \\
+BloodPressure & 72 & DiabetesPedigreeFunction & 0.3725 \\
+SkinThickness & 23 & Age & 29 \\
 \hline
 \end{tabular}
 \end{center}
 
-После бинаризации для каждой пары признаков строятся несколько матриц взаимосвязи. В основном алгоритме используется коэффициент ассоциации, поскольку именно матрица \texttt{association\_matrix.csv} далее загружается в программе и применяется для отбора признаков. Для бинарных показателей такой коэффициент удобен тем, что учитывает согласованность совместных появлений двух высоких или двух низких уровней и принимает значения в диапазоне от $-1$ до $1$.
+После бинаризации для каждой пары признаков строится таблица сопряженности
+\begin{center}
+\begin{tabular}{|c|c|c|}
+  \hline
+   & $B = 1$ & $B = 0$ \\
+  \hline
+  $A = 1$ & $a$ & $b$ \\
+  \hline
+  $A = 0$ & $c$ & $d$ \\
+  \hline
+\end{tabular}
+\end{center}
+где $a$ --- число объектов, у которых оба признака выше порога, $b$ --- число объектов, у которых первый признак выше порога, а второй нет, $c$ --- число объектов, у которых второй признак выше порога, а первый нет, $d$ --- число объектов, у которых оба признака не превышают порог.
 
-Сокращение размерности выполняется по следующему правилу. Строится матрица модулей коэффициентов связи, диагональные элементы зануляются, после чего признаки объединяются в компоненты связности при пороге сильной связи $|r| \ge 0.45$. В каждой компоненте в качестве представителя сохраняется признак с максимальной суммарной связью внутри своей группы. По рассчитанной матрице коэффициентов были получены две зависимые группы:
-\begin{itemize}
-  \item \texttt{Pregnancies}, \texttt{BloodPressure}, \texttt{Age}, из которых сохраняется \texttt{Age};
-  \item \texttt{SkinThickness}, \texttt{Insulin}, \texttt{BMI}, из которых сохраняется \texttt{SkinThickness}.
-\end{itemize}
-Признаки \texttt{Glucose} и \texttt{DiabetesPedigreeFunction} не вошли в группы сильной зависимости и были оставлены без изменений. В результате итоговое пространство признаков для кластеризации имеет четыре координаты: \texttt{Glucose}, \texttt{SkinThickness}, \texttt{DiabetesPedigreeFunction}, \texttt{Age}.
+После бинаризации были построены таблицы с коэффициентами ассоциации, Бернштейна, Пирсона и Юла. В итоге был выбран коэффициент ассоциации. Его выбор обусловлен тем, что он является симметричным, принимает значения в диапазоне от $-1$ до $1$, сохраняет знак зависимости и позволяет уверенно отделять сильные и слабые связи между бинаризованными признаками.
 
-После отбора координат каждый признак стандартизуется, чтобы привести шкалы измерения к сопоставимому виду. Затем на стандартизованных данных выполняется кластеризация методом \texttt{k-means} при $k = 2$. Для графического представления полученного разделения дополнительно применяется проекция главных компонент в двумерное пространство.
+\textbf{Коэффициент ассоциации}
+\[
+K_{\text{ассоц}} = \frac{ad - bc}{ad + bc}.
+\]
+Здесь $a$, $b$, $c$, $d$ --- элементы таблицы сопряженности. Коэффициент принимает значения от $-1$ до $1$, сохраняет знак зависимости и симметрично оценивает совместные появления высоких и низких уровней признаков.
 
-Схема построенной модели приведена на рисунке~\ref{fig:model_scheme}.
+Матрица коэффициентов ассоциации приведена на рисунке~\ref{fig:assoc_matrix}.
 
 \begin{figure}[H]
   \centering
-  \begin{tikzpicture}[
-    node distance=9mm and 7mm,
-    block/.style={draw, rounded corners, align=center, minimum width=3.2cm, minimum height=1cm},
-    line/.style={-{Latex[length=3mm]}, thick}
-  ]
-    \node[block] (data) {\texttt{diabetes.csv}};
-    \node[block, below=of data] (bin) {Бинаризация\\по медианам};
-    \node[block, below=of bin] (assoc) {Матрица коэффициентов\\ассоциации};
-    \node[block, below=of assoc] (select) {Отбор независимых\\координат};
-    \node[block, below=of select] (std) {Стандартизация};
-    \node[block, below=of std] (kmeans) {\texttt{k-means}, $k = 2$};
-    \node[block, below left=of kmeans] (pca) {PCA-проекция\\в 2D};
-    \node[block, below right=of kmeans] (interpret) {Интерпретация\\классов};
+  \includegraphics[width=0.95\textwidth]{association_matrix.png}
+  \caption{Матрица коэффициентов ассоциации}
+  \label{fig:assoc_matrix}
+\end{figure}
 
-    \draw[line] (data) -- (bin);
-    \draw[line] (bin) -- (assoc);
-    \draw[line] (assoc) -- (select);
-    \draw[line] (select) -- (std);
-    \draw[line] (std) -- (kmeans);
-    \draw[line] (kmeans) -- (pca);
-    \draw[line] (kmeans) -- (interpret);
-  \end{tikzpicture}
-  \caption{Схема стохастической модели классификации объектов}
+По матрице коэффициентов ассоциации наиболее сильные связи имеют пары Pregnancies--Age ($0.8733$), SkinThickness--BMI ($0.7075$), SkinThickness--Insulin ($0.6754$), BloodPressure--Age ($0.4909$). Эти значения прямо указывают на дублирование информации внутри нескольких групп признаков и позволяют перейти к сокращению размерности.
+
+Сокращение размерности выполняется по следующему правилу. Строится матрица модулей коэффициентов связи, диагональные элементы зануляются, после чего признаки объединяются в компоненты связности при пороге сильной связи $|r| \ge 0.45$. В каждой компоненте в качестве представителя сохраняется признак с максимальной суммарной связью внутри своей группы. По рассчитанной матрице коэффициентов были получены две зависимые группы:
+\begin{itemize}
+  \item Pregnancies, BloodPressure, Age, из которых сохраняется Age;
+  \item SkinThickness, Insulin, BMI, из которых сохраняется SkinThickness.
+\end{itemize}
+Признаки Glucose и DiabetesPedigreeFunction не вошли в группы сильной зависимости и были оставлены без изменений. В результате итоговое пространство признаков для кластеризации имеет четыре координаты: Glucose, SkinThickness, DiabetesPedigreeFunction, Age.
+
+После отбора координат каждый признак стандартизуется, чтобы привести шкалы измерения к сопоставимому виду. Затем на стандартизованных данных выполняется кластеризация методом k-means при $k = 2$. Для графического представления полученного разделения дополнительно применяется проекция главных компонент в двумерное пространство.
+
+Схема модели представлена на рисунке~\ref{fig:model_scheme}.
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\textwidth]{screen1.jpg}
+  \caption{Схема модели}
   \label{fig:model_scheme}
 \end{figure}
 
 \section{Решение вычислительной задачи}
 
-В программе \texttt{main.py} реализован последовательный вычислительный конвейер. Сначала из файла \texttt{diabetes.csv} считываются все числовые признаки, кроме \texttt{Outcome}, и формируется матрица наблюдений. Далее вычисляются медианы и строится бинарное представление признаков. После этого загружается матрица коэффициентов ассоциации \texttt{association\_matrix.csv}, преобразуется в матрицу модулей связей и по порогу $0.45$ выделяются компоненты связности.
+Метод k-means разбивает множество объектов на $k$ кластеров так, чтобы минимизировать суммарное расстояние объектов до центров своих кластеров:
+\[
+J = \sum_{j=1}^{k}\sum_{x_i \in S_j}\|x_i - \mu_j\|^2.
+\]
+Здесь $J$ --- функционал качества разбиения, $k$ --- число кластеров, $x_i$ --- вектор признаков $i$-го объекта, $S_j$ --- множество объектов $j$-го кластера, $\mu_j$ --- центр $j$-го кластера.
+Работа метода k-means может быть представлена следующими шагами.
+\begin{enumerate}[label=\arabic*.]
+  \item Задаётся число кластеров $k$.
+  \item В пространстве признаков выбираются начальные центры кластеров $\mu_1, \mu_2, \dots, \mu_k$.
+  \item Для каждого объекта $x_i$ вычисляются расстояния до всех центров кластеров.
+  \item Объект $x_i$ относится к тому кластеру, центр которого находится ближе всего.
+  \item Для каждого кластера пересчитывается новый центр $\mu_j$ как среднее арифметическое векторов объектов, попавших в этот кластер.
+  \item Шаги 3--5 повторяются до тех пор, пока состав кластеров перестанет изменяться или пока изменение функционала $J$ не станет пренебрежимо малым.
+\end{enumerate}
 
-Следующий этап состоит в выборе представителей компонент связности. Для каждой группы признаков вычисляется сумма модулей связей внутри группы, после чего сохраняется один представитель. На выбранных четырёх координатах \texttt{Glucose}, \texttt{SkinThickness}, \texttt{DiabetesPedigreeFunction}, \texttt{Age} строится новая матрица признаков, которая затем стандартизуется по среднему значению и среднеквадратическому отклонению.
+Таким образом, метод k-means поочередно уточняет принадлежность объектов к кластерам и положение центров кластеров, постепенно уменьшая внутрикластерную сумму квадратов.
 
-Кластеризация выполняется методом \texttt{k-means} с параметрами \texttt{k = 2}, \texttt{n\_init = 30}, \texttt{max\_iterations = 300}, \texttt{seed = 42}. Для каждого запуска случайно выбираются начальные центроиды, после чего итерационно пересчитываются принадлежности объектов и центры кластеров. Лучшее разбиение выбирается по минимальному значению внутрикластерной суммы квадратов расстояний. Затем метки кластеров согласуются с \texttt{Outcome} так, чтобы максимизировать долю совпадений. Для визуализации результатов применяется двумерная PCA-проекция стандартизованных точек.
-
-По результатам вычислений были выбраны признаки \texttt{Glucose}, \texttt{SkinThickness}, \texttt{DiabetesPedigreeFunction}, \texttt{Age}. Итоговая точность согласования меток кластеров с \texttt{Outcome} составила $0.7435$. Размеры полученных классов равны: класс~0 содержит 501 объект, класс~1 содержит 267 объектов.
+Для оценки качества после согласования меток кластеров с целевой переменной Outcome используется коэффициент точности
+\[
+\mathrm{Accuracy} = \frac{N_{\text{correct}}}{N}.
+\]
+Здесь $N_{\text{correct}}$ --- число объектов, для которых согласованная метка кластера совпала с Outcome, $N$ --- общее число объектов выборки.
 
 \section{Анализ модели}
 
-Результат кластеризации в двумерной PCA-проекции приведён на рисунке~\ref{fig:clusters}. Изображение отражает не исходное четырёхмерное пространство, а его двумерное представление, используемое только для визуального анализа.
+Результат кластеризации в двумерной проекции приведён на рисунке~\ref{fig:clusters}. Изображение отражает не исходное четырёхмерное пространство, а его двумерное представление, используемое только для визуального анализа.
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.8\textwidth]{kmeans_clusters_2d.png}
-  \caption{Кластеры объектов в двумерной PCA-проекции}
+  \caption{Кластеры объектов в двумерной проекции}
   \label{fig:clusters}
 \end{figure}
 
-Интерпретация классов выполнена по значениям центроидов относительно медиан исходных признаков. Класс~0 включает объекты, для которых \texttt{Glucose} в среднем ниже медианы, \texttt{SkinThickness} ниже медианы, \texttt{DiabetesPedigreeFunction} выше медианы, \texttt{Age} ниже медианы. Класс~1 включает объекты, для которых \texttt{Glucose} выше медианы, \texttt{SkinThickness} ниже медианы, \texttt{DiabetesPedigreeFunction} выше медианы, \texttt{Age} выше медианы.
+По результатам сокращения размерности для кластеризации были отобраны признаки Glucose, SkinThickness, DiabetesPedigreeFunction, Age. После работы алгоритма получены два кластера: класс~0 содержит 501 объект, класс~1 содержит 267 объектов. Точность согласования меток кластеров с Outcome составляет $0.74349$, что соответствует 571 верному совпадению из 768 объектов. Для сравнения, при использовании всех восьми исходных признаков точность составляет $0.67578$, то есть 519 верных совпадений из 768. Следовательно, сокращение размерности в данной задаче улучшает качество итогового разбиения.
 
-Сопоставление полученных классов с \texttt{Outcome} показывает, что распределение объектов имеет следующий вид: \texttt{(cluster 0, Outcome 0) = 402}, \texttt{(cluster 0, Outcome 1) = 99}, \texttt{(cluster 1, Outcome 0) = 98}, \texttt{(cluster 1, Outcome 1) = 169}. Следовательно, выбранные признаки и процедура сокращения размерности позволяют получить устойчивое двухклассовое разделение, хотя между классами сохраняется область пересечения.
+Интерпретация классов выполнена по значениям центроидов относительно медиан исходных признаков.
+\begin{table}[H]
+  \centering
+  \caption{Характеристики центроидов полученных кластеров}
+  \footnotesize
+  \setlength{\tabcolsep}{3pt}
+  \begin{tabular}{|c|p{2.4cm}|p{2.0cm}|p{2.3cm}|p{3.7cm}|p{1.8cm}|}
+    \hline
+    Класс & Число объектов & Glucose & SkinThickness & DiabetesPedigreeFunction & Age \\
+    \hline
+    0 & 501 & 106.511 & 21.275 & 0.416 & 27.471 \\
+    1 & 267 & 147.884 & 19.150 & 0.576 & 44.067 \\
+    \hline
+  \end{tabular}
+\end{table}
 
-Содержательно различие классов определяется прежде всего комбинацией уровней \texttt{Glucose} и \texttt{Age}, тогда как \texttt{SkinThickness} в обоих классах остаётся ниже медианного уровня, а \texttt{DiabetesPedigreeFunction} в обоих классах выше медианы. Это означает, что при выбранной модели основной вклад в разделение объектов вносят не все признаки одинаково, а выделенные после сокращения размерности координаты.
+Сопоставление полученных классов с Outcome даёт следующую матрицу согласования:
+\begin{table}[H]
+  \centering
+  \caption{Матрица согласования кластеров и целевой переменной Outcome}
+  \begin{tabular}{|c|c|c|}
+    \hline
+    Кластер & Outcome = 0 & Outcome = 1 \\
+    \hline
+    0 & 402 & 99 \\
+    1 & 98 & 169 \\
+    \hline
+  \end{tabular}
+\end{table}
+
+По рисунку~\ref{fig:clusters} видно, что кластеры разделяются удовлетворительно, однако между ними сохраняется зона пересечения. После сокращения размерности итоговое разбиение строится по признакам Glucose, SkinThickness, DiabetesPedigreeFunction и Age, причем полученные центроиды различаются по всем этим координатам.
 
 \section{Вывод}
 
-В ходе лабораторной работы были выявлены группы зависимых признаков и выполнено сокращение размерности исходного пространства до четырёх координат. На выбранных признаках \texttt{Glucose}, \texttt{SkinThickness}, \texttt{DiabetesPedigreeFunction}, \texttt{Age} метод \texttt{k-means} сформировал два интерпретируемых класса объектов. Согласование кластеров с \texttt{Outcome} дало точность $0.7435$, что показывает пригодность модели для грубой классификации по входным данным. Построенная схема обработки данных позволяет последовательно переходить от анализа связей между признаками к итоговому разбиению объектов на классы.
+В ходе лабораторной работы была построена стохастическая модель кластеризации объектов по данным diabetes.csv. Была выполнена бинаризация признаков по медианным порогам, проведён анализ коэффициентов связи и для дальнейшей работы выбран коэффициент ассоциации. На его основе выполнено сокращение размерности до четырёх признаков Glucose, SkinThickness, DiabetesPedigreeFunction и Age. На отобранных координатах метод k-means сформировал два кластера объектов, а точность согласования с Outcome составила $0.74349$.
 
 \section{Практическая реализация}
 
-Листинг~\ref{lst:main_code} содержит исходный код программы, реализующей бинаризацию признаков, отбор зависимых групп, сокращение размерности, кластеризацию и визуализацию результатов.
+\begin{lstlisting}[language=Python,caption={Исходный код программы.},label={lst:main_code}]
+import csv
+import random
 
-\lstinputlisting[
-  language=Python,
-  inputencoding=utf8/latin1,
-  caption={Исходный код программы \texttt{main.py}},
-  label={lst:main_code}
-]{main.py}
+import matplotlib
+import numpy as np
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+plt.rcParams["font.family"] = "DejaVu Sans"
+plt.rcParams["axes.unicode_minus"] = False
+
+ASSOCIATION_MATRIX_FILE = "association_matrix.csv"
+STRONG_RELATION_THRESHOLD = 0.45
+
+
+def load_data(path):
+    with open(path, "r", encoding="utf-8", newline="") as file:
+        reader = csv.DictReader(file)
+        rows = list(reader)
+    feature_names = [name for name in reader.fieldnames if name != "Outcome"]
+    data = np.array([[float(row[name]) for name in feature_names] for row in rows], dtype=float)
+    outcome = np.array([int(row["Outcome"]) for row in rows], dtype=int)
+    return feature_names, data, outcome
+
+
+def median_binarize(data):
+    medians = np.median(data, axis=0)
+    return medians, data > medians
+
+
+def load_matrix_csv(path, expected_feature_names):
+    with open(path, "r", encoding="utf-8", newline="") as file:
+        reader = csv.reader(file)
+        header = next(reader)
+        file_features = header[1:]
+        if file_features != expected_feature_names:
+            raise ValueError("association_matrix.csv does not match feature order in diabetes.csv")
+        rows = list(reader)
+    row_features = [row[0] for row in rows]
+    if row_features != expected_feature_names:
+        raise ValueError("association_matrix.csv row labels do not match diabetes.csv")
+    matrix = np.array([[float(x) for x in row[1:]] for row in rows], dtype=float)
+    return matrix
+
+
+def strength_matrix(matrix):
+    strength = np.abs(matrix).astype(float)
+    np.fill_diagonal(strength, 0.0)
+    return strength
+
+
+def connected_components(strength, threshold):
+    count = strength.shape[0]
+    adjacency = [[] for _ in range(count)]
+    for i in range(count):
+        for j in range(i + 1, count):
+            if strength[i, j] >= threshold:
+                adjacency[i].append(j)
+                adjacency[j].append(i)
+    visited = [False] * count
+    components = []
+    for start in range(count):
+        if visited[start]:
+            continue
+        stack = [start]
+        visited[start] = True
+        component = []
+        while stack:
+            node = stack.pop()
+            component.append(node)
+            for neighbor in adjacency[node]:
+                if not visited[neighbor]:
+                    visited[neighbor] = True
+                    stack.append(neighbor)
+        components.append(sorted(component))
+    return components
+
+
+def select_features(strength, threshold, feature_names):
+    components = connected_components(strength, threshold)
+    selected = []
+    for component in components:
+        if len(component) == 1:
+            selected.append(component[0])
+            continue
+        weights = []
+        for idx in component:
+            score = float(sum(strength[idx, other] for other in component if other != idx))
+            weights.append((idx, score))
+        representative = sorted(weights, key=lambda item: (-item[1], feature_names[item[0]]))[0][0]
+        selected.append(representative)
+    global_scores = strength.sum(axis=1)
+    if len(selected) < 2:
+        order = sorted(range(len(feature_names)), key=lambda idx: (-global_scores[idx], feature_names[idx]))
+        for idx in order:
+            if idx not in selected:
+                selected.append(idx)
+            if len(selected) >= 2:
+                break
+    return sorted(set(selected))
+
+
+def standardize(points):
+    mean = points.mean(axis=0)
+    std = points.std(axis=0)
+    std = np.where(std == 0, 1.0, std)
+    standardized = (points - mean) / std
+    return standardized
+
+
+def kmeans_once(points, k, max_iterations, rng):
+    indices = rng.sample(range(len(points)), k)
+    centroids = points[np.array(indices, dtype=int)].astype(float)
+    labels = None
+    for _ in range(max_iterations):
+        distances = ((points[:, None, :] - centroids[None, :, :]) ** 2).sum(axis=2)
+        new_labels = np.argmin(distances, axis=1)
+        if labels is not None and np.array_equal(new_labels, labels):
+            break
+        labels = new_labels
+        for cluster_id in range(k):
+            mask = labels == cluster_id
+            if np.any(mask):
+                centroids[cluster_id] = points[mask].mean(axis=0)
+            else:
+                centroids[cluster_id] = points[rng.randrange(len(points))]
+    inertia = float(((points - centroids[labels]) ** 2).sum())
+    return labels.astype(int), centroids.astype(float), inertia
+
+
+def kmeans(points, k=2, n_init=30, max_iterations=300, seed=42):
+    best = None
+    for run in range(n_init):
+        rng = random.Random(seed + run * 9973)
+        labels, centroids, inertia = kmeans_once(points, k, max_iterations, rng)
+        if best is None or inertia < best["inertia"]:
+            best = {"labels": labels, "centroids": centroids, "inertia": inertia}
+    return best
+
+
+def align_clusters_to_outcome(labels, outcome):
+    labels = np.asarray(labels, dtype=int)
+    outcome = np.asarray(outcome, dtype=int)
+    direct = float((labels == outcome).mean())
+    flipped_labels = 1 - labels
+    flipped = float((flipped_labels == outcome).mean())
+    if flipped > direct:
+        return flipped_labels, flipped
+    return labels, direct
+
+
+def pca_projection(points, dimensions=2):
+    centered = points - points.mean(axis=0)
+    _, _, vt = np.linalg.svd(centered, full_matrices=False)
+    components = vt[:dimensions].T
+    projection = centered @ components
+    return projection, components, points.mean(axis=0)
+
+
+def draw_cluster_projection(points_standardized, labels_aligned, centroids_standardized, path):
+    projection, components, mean = pca_projection(points_standardized, dimensions=2)
+    centroid_projection = (centroids_standardized - mean) @ components
+    fig, axis = plt.subplots(figsize=(8, 6))
+    colors = ["#1f77b4", "#d62728"]
+    labels_aligned = np.asarray(labels_aligned, dtype=int)
+    for cluster_id in [0, 1]:
+        cluster_points = projection[labels_aligned == cluster_id]
+        axis.scatter(
+            cluster_points[:, 0],
+            cluster_points[:, 1],
+            s=24,
+            alpha=0.75,
+            color=colors[cluster_id],
+            label=f"Class {cluster_id}",
+        )
+    axis.scatter(
+        centroid_projection[:, 0],
+        centroid_projection[:, 1],
+        s=160,
+        c="#000000",
+        marker="X",
+        label="Centroids",
+    )
+    axis.set_xlabel("PC1")
+    axis.set_ylabel("PC2")
+    axis.set_title("k-means clusters in PCA 2D projection")
+    axis.grid(True, alpha=0.25)
+    axis.legend()
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
+def save_clusters_csv(data, feature_names, selected_indices, labels_raw, labels_aligned, outcome, path):
+    selected_names = [feature_names[idx] for idx in selected_indices]
+    with open(path, "w", encoding="utf-8", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(["object_id"] + selected_names + ["cluster_raw", "cluster_aligned", "Outcome"])
+        for i in range(len(data)):
+            values = [f"{data[i, idx]:.6f}" for idx in selected_indices]
+            writer.writerow([i + 1] + values + [int(labels_raw[i]), int(labels_aligned[i]), int(outcome[i])])
+
+
+def save_cluster_summary_csv(feature_names, selected_indices, medians, data, labels_aligned, path):
+    selected_names = [feature_names[idx] for idx in selected_indices]
+    header = ["class", "count"]
+    for name in selected_names:
+        header.append(f"{name}_centroid")
+        header.append(f"{name}_vs_median")
+    with open(path, "w", encoding="utf-8", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(header)
+        for class_id in [0, 1]:
+            mask = labels_aligned == class_id
+            class_data = data[mask][:, selected_indices]
+            if len(class_data):
+                centroid = class_data.mean(axis=0)
+            else:
+                centroid = np.zeros(len(selected_indices), dtype=float)
+            row = [class_id, int(mask.sum())]
+            for local_idx, feature_idx in enumerate(selected_indices):
+                value = float(centroid[local_idx])
+                direction = "above_median" if value > medians[feature_idx] else "below_median"
+                row.extend([f"{value:.6f}", direction])
+            writer.writerow(row)
+
+
+def print_text_output(accuracy, labels_aligned, feature_names, selected_indices):
+    labels_aligned = np.asarray(labels_aligned, dtype=int)
+    count0 = int((labels_aligned == 0).sum())
+    count1 = int((labels_aligned == 1).sum())
+    selected = ", ".join(feature_names[idx] for idx in selected_indices)
+    print(f"Selected features: {selected}")
+    print(f"Accuracy: {accuracy:.4f}")
+    print(f"Class 0 size: {count0}")
+    print(f"Class 1 size: {count1}")
+
+
+def main():
+    feature_names, data, outcome = load_data("diabetes.csv")
+    medians, _ = median_binarize(data)
+    matrix = load_matrix_csv(ASSOCIATION_MATRIX_FILE, feature_names)
+    strength = strength_matrix(matrix)
+    selected_indices = select_features(strength, STRONG_RELATION_THRESHOLD, feature_names)
+    selected_points = data[:, selected_indices]
+    standardized_points = standardize(selected_points)
+    km = kmeans(standardized_points, k=2, n_init=30, max_iterations=300, seed=42)
+    labels_raw = km["labels"]
+    labels_aligned, accuracy = align_clusters_to_outcome(labels_raw, outcome)
+
+    best = {
+        "selected_indices": selected_indices,
+        "labels_raw": labels_raw,
+        "labels_aligned": labels_aligned,
+        "centroids_standardized": km["centroids"],
+        "accuracy": accuracy,
+    }
+
+    save_clusters_csv(
+        data,
+        feature_names,
+        best["selected_indices"],
+        best["labels_raw"],
+        best["labels_aligned"],
+        outcome,
+        "clusters.csv",
+    )
+    save_cluster_summary_csv(
+        feature_names,
+        best["selected_indices"],
+        medians,
+        data,
+        best["labels_aligned"],
+        "cluster_summary.csv",
+    )
+    draw_cluster_projection(
+        standardized_points,
+        best["labels_aligned"],
+        best["centroids_standardized"],
+        "kmeans_clusters_2d.png",
+    )
+    print_text_output(best["accuracy"], best["labels_aligned"], feature_names, best["selected_indices"])
+
+
+if __name__ == "__main__":
+    main()
+\end{lstlisting}
 
 \end{document}
