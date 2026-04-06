@@ -12,6 +12,8 @@ plt.rcParams["axes.unicode_minus"] = False
 
 ASSOCIATION_MATRIX_FILE = "association_matrix.csv"
 STRONG_RELATION_THRESHOLD = 0.45
+TRUTH_TABLE_FILE = "truth_table.csv"
+FIXED_SELECTED_FEATURES = ["Glucose", "SkinThickness", "DiabetesPedigreeFunction", "Age"]
 
 
 def load_data(path):
@@ -226,35 +228,203 @@ def save_cluster_summary_csv(feature_names, selected_indices, medians, data, lab
             writer.writerow(row)
 
 
-def print_text_output(accuracy, labels_aligned, feature_names, selected_indices):
-    labels_aligned = np.asarray(labels_aligned, dtype=int)
-    count0 = int((labels_aligned == 0).sum())
-    count1 = int((labels_aligned == 1).sum())
+def get_fixed_selected_indices(feature_names):
+    index_by_name = {name: idx for idx, name in enumerate(feature_names)}
+    return [index_by_name[name] for name in FIXED_SELECTED_FEATURES]
+
+
+def build_truth_table_rows(binary_data, labels_aligned):
+    counts_by_pattern = {}
+    for bits, label in zip(binary_data.astype(int), np.asarray(labels_aligned, dtype=int)):
+        pattern = tuple(int(bit) for bit in bits)
+        if pattern not in counts_by_pattern:
+            counts_by_pattern[pattern] = [0, 0]
+        counts_by_pattern[pattern][int(label)] += 1
+    truth_table_rows = []
+    for pattern in sorted(counts_by_pattern):
+        count0, count1 = counts_by_pattern[pattern]
+        y = 1 if count1 > count0 else 0
+        truth_table_rows.append(list(pattern) + [y])
+    return truth_table_rows
+
+
+def save_truth_table_csv(feature_names, truth_table_rows, path):
+    with open(path, "w", encoding="utf-8", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(feature_names + ["Y"])
+        writer.writerows(truth_table_rows)
+
+
+def count_binary_labels(labels):
+    labels = np.asarray(labels, dtype=int)
+    return int((labels == 0).sum()), int((labels == 1).sum())
+
+
+def count_truth_table_labels(truth_table_rows):
+    labels = [row[-1] for row in truth_table_rows]
+    return count_binary_labels(labels)
+
+
+def merge_terms(left, right):
+    merged = []
+    differences = 0
+    for left_bit, right_bit in zip(left, right):
+        if left_bit == right_bit:
+            merged.append(left_bit)
+            continue
+        if left_bit == -1 or right_bit == -1:
+            return None
+        differences += 1
+        merged.append(-1)
+        if differences > 1:
+            return None
+    if differences != 1:
+        return None
+    return tuple(merged)
+
+
+def term_covers(term, pattern):
+    return all(term_bit == -1 or term_bit == pattern_bit for term_bit, pattern_bit in zip(term, pattern))
+
+
+def term_covers_any(term, patterns):
+    return any(term_covers(term, pattern) for pattern in patterns)
+
+
+def term_literal_count(term):
+    return sum(bit != -1 for bit in term)
+
+
+def format_dnf(feature_names, terms):
+    if not terms:
+        return "0"
+    variable_names = [f"x{i}" for i in range(1, len(feature_names) + 1)]
+    if any(all(bit == -1 for bit in term) for term in terms):
+        return "1"
+    formatted_terms = []
+    for pattern in sorted(terms, key=lambda term: (term_literal_count(term), term)):
+        literals = [
+            name if bit == 1 else f"!{name}"
+            for name, bit in zip(variable_names, pattern)
+            if bit != -1
+        ]
+        if literals:
+            formatted_terms.append("(" + " & ".join(literals) + ")")
+        else:
+            formatted_terms.append("1")
+    return " | ".join(formatted_terms)
+
+
+def build_dnf_terms(truth_table_rows):
+    positive_patterns = {
+        tuple(row[:-1])
+        for row in truth_table_rows
+        if int(row[-1]) == 1
+    }
+    negative_patterns = {
+        tuple(row[:-1])
+        for row in truth_table_rows
+        if int(row[-1]) == 0
+    }
+    if not positive_patterns:
+        return "0"
+    current_terms = set(positive_patterns)
+    prime_implicants = set()
+    while current_terms:
+        current_list = sorted(current_terms)
+        used_terms = set()
+        next_terms = set()
+        for left_index in range(len(current_list)):
+            for right_index in range(left_index + 1, len(current_list)):
+                merged = merge_terms(current_list[left_index], current_list[right_index])
+                if merged is None or term_covers_any(merged, negative_patterns):
+                    continue
+                used_terms.add(current_list[left_index])
+                used_terms.add(current_list[right_index])
+                next_terms.add(merged)
+        prime_implicants.update(term for term in current_terms if term not in used_terms)
+        current_terms = next_terms
+    prime_implicants = {
+        term for term in prime_implicants
+        if term_covers_any(term, positive_patterns)
+    }
+    coverage = {
+        pattern: {term for term in prime_implicants if term_covers(term, pattern)}
+        for pattern in positive_patterns
+    }
+    selected_terms = set()
+    covered_patterns = set()
+    for pattern, covering_terms in coverage.items():
+        if len(covering_terms) == 1:
+            selected_terms.update(covering_terms)
+    for term in selected_terms:
+        covered_patterns.update(pattern for pattern in positive_patterns if term_covers(term, pattern))
+    remaining_patterns = positive_patterns - covered_patterns
+    available_terms = set(prime_implicants)
+    while remaining_patterns:
+        best_term = max(
+            available_terms,
+            key=lambda term: (
+                sum(term_covers(term, pattern) for pattern in remaining_patterns),
+                -term_literal_count(term),
+                tuple(-1 if bit == -1 else bit for bit in term),
+            ),
+        )
+        selected_terms.add(best_term)
+        covered_now = {pattern for pattern in remaining_patterns if term_covers(best_term, pattern)}
+        remaining_patterns -= covered_now
+        available_terms.discard(best_term)
+    reduced_terms = set(selected_terms)
+    for term in sorted(selected_terms, key=lambda item: (term_literal_count(item), item), reverse=True):
+        other_terms = reduced_terms - {term}
+        if positive_patterns and all(any(term_covers(other, pattern) for other in other_terms) for pattern in positive_patterns if term_covers(term, pattern)):
+            reduced_terms.discard(term)
+    return reduced_terms
+
+
+def evaluate_dnf_terms(terms, binary_data):
+    labels = []
+    for bits in binary_data.astype(int):
+        pattern = tuple(int(bit) for bit in bits)
+        label = 1 if any(term_covers(term, pattern) for term in terms) else 0
+        labels.append(label)
+    return np.array(labels, dtype=int)
+
+
+def compare_labels(predicted_labels, reference_labels):
+    predicted_labels = np.asarray(predicted_labels, dtype=int)
+    reference_labels = np.asarray(reference_labels, dtype=int)
+    matches = int((predicted_labels == reference_labels).sum())
+    total = int(len(reference_labels))
+    accuracy = matches / total if total else 0.0
+    return matches, total, accuracy
+
+
+def print_text_output(feature_names, selected_indices, truth_table_counts, cluster_counts, dnf_counts, dnf_match_stats, dnf):
     selected = ", ".join(feature_names[idx] for idx in selected_indices)
     print(f"Selected features: {selected}")
-    print(f"Accuracy: {accuracy:.4f}")
-    print(f"Class 0 size: {count0}")
-    print(f"Class 1 size: {count1}")
+    print(f"Truth table Y -> 0: {truth_table_counts[0]}, 1: {truth_table_counts[1]}")
+    print(f"Cluster labels -> 0: {cluster_counts[0]}, 1: {cluster_counts[1]}")
+    print(f"DNF labels -> 0: {dnf_counts[0]}, 1: {dnf_counts[1]}")
+    print(f"DNF vs cluster labels -> matches: {dnf_match_stats[0]}/{dnf_match_stats[1]}, accuracy: {dnf_match_stats[2]:.4f}")
+    print(f"DNF: {dnf}")
 
 
 def main():
     feature_names, data, outcome = load_data("diabetes.csv")
-    medians, _ = median_binarize(data)
-    matrix = load_matrix_csv(ASSOCIATION_MATRIX_FILE, feature_names)
-    strength = strength_matrix(matrix)
-    selected_indices = select_features(strength, STRONG_RELATION_THRESHOLD, feature_names)
+    medians, binary_data = median_binarize(data)
+    selected_indices = get_fixed_selected_indices(feature_names)
     selected_points = data[:, selected_indices]
     standardized_points = standardize(selected_points)
     km = kmeans(standardized_points, k=2, n_init=30, max_iterations=300, seed=42)
     labels_raw = km["labels"]
-    labels_aligned, accuracy = align_clusters_to_outcome(labels_raw, outcome)
+    labels_aligned, _ = align_clusters_to_outcome(labels_raw, outcome)
 
     best = {
         "selected_indices": selected_indices,
         "labels_raw": labels_raw,
         "labels_aligned": labels_aligned,
         "centroids_standardized": km["centroids"],
-        "accuracy": accuracy,
     }
 
     save_clusters_csv(
@@ -274,13 +444,34 @@ def main():
         best["labels_aligned"],
         "cluster_summary.csv",
     )
+    truth_table_rows = build_truth_table_rows(binary_data, best["labels_aligned"])
+    save_truth_table_csv(
+        feature_names,
+        truth_table_rows,
+        TRUTH_TABLE_FILE,
+    )
     draw_cluster_projection(
         standardized_points,
         best["labels_aligned"],
         best["centroids_standardized"],
         "kmeans_clusters_2d.png",
     )
-    print_text_output(best["accuracy"], best["labels_aligned"], feature_names, best["selected_indices"])
+    truth_table_counts = count_truth_table_labels(truth_table_rows)
+    cluster_counts = count_binary_labels(best["labels_aligned"])
+    dnf_terms = build_dnf_terms(truth_table_rows)
+    dnf = format_dnf(feature_names, dnf_terms)
+    dnf_labels = evaluate_dnf_terms(dnf_terms, binary_data)
+    dnf_counts = count_binary_labels(dnf_labels)
+    dnf_match_stats = compare_labels(dnf_labels, best["labels_aligned"])
+    print_text_output(
+        feature_names,
+        best["selected_indices"],
+        truth_table_counts,
+        cluster_counts,
+        dnf_counts,
+        dnf_match_stats,
+        dnf,
+    )
 
 
 if __name__ == "__main__":
