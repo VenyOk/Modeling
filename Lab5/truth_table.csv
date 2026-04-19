@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 x1,x2,x3,x4,x5,x6,x7,x8,y
+=======
+Pregnancies,Glucose,BloodPressure,SkinThickness,Insulin,BMI,DiabetesPedigreeFunction,Age,Y
+>>>>>>> 47d70492a5c5d567c10bfd3190cd873831dc081a
 0,0,0,0,0,0,0,0,0
 0,0,0,0,0,0,1,0,0
 0,0,0,0,0,0,1,1,0

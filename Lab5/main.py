@@ -13,7 +13,10 @@ plt.rcParams["axes.unicode_minus"] = False
 ASSOCIATION_MATRIX_FILE = "association_matrix.csv"
 STRONG_RELATION_THRESHOLD = 0.45
 TRUTH_TABLE_FILE = "truth_table.csv"
+<<<<<<< HEAD
 LOGIC_FORMS_FILE = "extra_features_sdnf.txt"
+=======
+>>>>>>> 47d70492a5c5d567c10bfd3190cd873831dc081a
 FIXED_SELECTED_FEATURES = ["Glucose", "SkinThickness", "DiabetesPedigreeFunction", "Age"]
 
 
@@ -250,10 +253,16 @@ def build_truth_table_rows(binary_data, labels_aligned):
 
 
 def save_truth_table_csv(feature_names, truth_table_rows, path):
+<<<<<<< HEAD
     variable_names = [f"x{i}" for i in range(1, len(feature_names) + 1)]
     with open(path, "w", encoding="utf-8", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(variable_names + ["y"])
+=======
+    with open(path, "w", encoding="utf-8", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(feature_names + ["Y"])
+>>>>>>> 47d70492a5c5d567c10bfd3190cd873831dc081a
         writer.writerows(truth_table_rows)
 
 
@@ -317,6 +326,7 @@ def format_dnf(feature_names, terms):
     return " | ".join(formatted_terms)
 
 
+<<<<<<< HEAD
 def build_sdnf_terms(truth_table_rows):
     return {
         tuple(int(bit) for bit in row[:-1])
@@ -325,6 +335,8 @@ def build_sdnf_terms(truth_table_rows):
     }
 
 
+=======
+>>>>>>> 47d70492a5c5d567c10bfd3190cd873831dc081a
 def build_dnf_terms(truth_table_rows):
     positive_patterns = {
         tuple(row[:-1])
@@ -337,7 +349,11 @@ def build_dnf_terms(truth_table_rows):
         if int(row[-1]) == 0
     }
     if not positive_patterns:
+<<<<<<< HEAD
         return set()
+=======
+        return "0"
+>>>>>>> 47d70492a5c5d567c10bfd3190cd873831dc081a
     current_terms = set(positive_patterns)
     prime_implicants = set()
     while current_terms:
@@ -392,12 +408,15 @@ def build_dnf_terms(truth_table_rows):
     return reduced_terms
 
 
+<<<<<<< HEAD
 def save_logic_forms(path, sdnf, dnf):
     with open(path, "w", encoding="utf-8", newline="") as file:
         file.write(f"SDNF: {sdnf}\n")
         file.write(f"DNF: {dnf}\n")
 
 
+=======
+>>>>>>> 47d70492a5c5d567c10bfd3190cd873831dc081a
 def evaluate_dnf_terms(terms, binary_data):
     labels = []
     for bits in binary_data.astype(int):
@@ -418,12 +437,21 @@ def compare_labels(predicted_labels, reference_labels):
 
 def print_text_output(feature_names, selected_indices, truth_table_counts, cluster_counts, dnf_counts, dnf_match_stats, dnf):
     selected = ", ".join(feature_names[idx] for idx in selected_indices)
+<<<<<<< HEAD
     print(f"Выбранные признаки: {selected}")
     print(f"Метки Y в таблице истинности -> 0: {truth_table_counts[0]}, 1: {truth_table_counts[1]}")
     print(f"Метки кластеров -> 0: {cluster_counts[0]}, 1: {cluster_counts[1]}")
     print(f"Метки ДНФ -> 0: {dnf_counts[0]}, 1: {dnf_counts[1]}")
     print(f"Сравнение ДНФ и кластеров -> совпадения: {dnf_match_stats[0]}/{dnf_match_stats[1]}, точность: {dnf_match_stats[2]:.4f}")
     print(f"ДНФ: {dnf}")
+=======
+    print(f"Selected features: {selected}")
+    print(f"Truth table Y -> 0: {truth_table_counts[0]}, 1: {truth_table_counts[1]}")
+    print(f"Cluster labels -> 0: {cluster_counts[0]}, 1: {cluster_counts[1]}")
+    print(f"DNF labels -> 0: {dnf_counts[0]}, 1: {dnf_counts[1]}")
+    print(f"DNF vs cluster labels -> matches: {dnf_match_stats[0]}/{dnf_match_stats[1]}, accuracy: {dnf_match_stats[2]:.4f}")
+    print(f"DNF: {dnf}")
+>>>>>>> 47d70492a5c5d567c10bfd3190cd873831dc081a
 
 
 def main():
@@ -474,11 +502,16 @@ def main():
     )
     truth_table_counts = count_truth_table_labels(truth_table_rows)
     cluster_counts = count_binary_labels(best["labels_aligned"])
+<<<<<<< HEAD
     sdnf_terms = build_sdnf_terms(truth_table_rows)
     sdnf = format_dnf(feature_names, sdnf_terms)
     dnf_terms = build_dnf_terms(truth_table_rows)
     dnf = format_dnf(feature_names, dnf_terms)
     save_logic_forms(LOGIC_FORMS_FILE, sdnf, dnf)
+=======
+    dnf_terms = build_dnf_terms(truth_table_rows)
+    dnf = format_dnf(feature_names, dnf_terms)
+>>>>>>> 47d70492a5c5d567c10bfd3190cd873831dc081a
     dnf_labels = evaluate_dnf_terms(dnf_terms, binary_data)
     dnf_counts = count_binary_labels(dnf_labels)
     dnf_match_stats = compare_labels(dnf_labels, best["labels_aligned"])
