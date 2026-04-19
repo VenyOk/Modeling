@@ -1,0 +1,13 @@
+rank_levels,selected_count,selected,mean_abs_rho_off_diag,cluster_match_accuracy,kmeans_inertia
+2,5,Glucose;BloodPressure;SkinThickness;DiabetesPedigreeFunction;Age,0.146205,0.7188,3087.19
+3,4,Glucose;SkinThickness;DiabetesPedigreeFunction;Age,0.156878,0.7435,2388.92
+4,4,Glucose;SkinThickness;DiabetesPedigreeFunction;Age,0.172247,0.7435,2388.92
+5,4,Glucose;SkinThickness;DiabetesPedigreeFunction;Age,0.175617,0.7435,2388.92
+8,4,Glucose;SkinThickness;DiabetesPedigreeFunction;Age,0.177429,0.7435,2388.92
+12,4,Glucose;SkinThickness;DiabetesPedigreeFunction;Age,0.178977,0.7435,2388.92
+16,4,Glucose;SkinThickness;DiabetesPedigreeFunction;Age,0.179939,0.7435,2388.92
+24,4,Glucose;SkinThickness;DiabetesPedigreeFunction;Age,0.180693,0.7435,2388.92
+32,4,Glucose;SkinThickness;DiabetesPedigreeFunction;Age,0.180742,0.7435,2388.92
+48,4,Glucose;SkinThickness;DiabetesPedigreeFunction;Age,0.181051,0.7435,2388.92
+64,4,Glucose;SkinThickness;DiabetesPedigreeFunction;Age,0.181098,0.7435,2388.92
+полные,4,Glucose;SkinThickness;DiabetesPedigreeFunction;Age,0.184876,0.7435,2388.92

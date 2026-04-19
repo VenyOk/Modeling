@@ -1,0 +1,13 @@
+rank_levels,selected_count,selected,significant_pairs,mean_abs_rho_off_diag,cluster_match_accuracy,kmeans_inertia
+2,2,Pregnancies;Age,14,0.146205,0.6693,623.04
+3,2,BloodPressure;Age,16,0.156878,0.6523,907.93
+4,2,SkinThickness;Age,17,0.172247,0.5768,931.24
+5,2,BMI;Age,17,0.175617,0.6667,973.15
+8,2,BMI;Age,17,0.177429,0.6667,973.15
+12,2,BMI;Age,17,0.178977,0.6667,973.15
+16,2,BMI;Age,17,0.179939,0.6667,973.15
+24,2,BMI;Age,17,0.180693,0.6667,973.15
+32,2,BMI;Age,17,0.180742,0.6667,973.15
+48,2,BMI;Age,17,0.181051,0.6667,973.15
+64,2,BMI;Age,17,0.181098,0.6667,973.15
+full,2,BMI;Age,19,0.184876,0.6667,973.15

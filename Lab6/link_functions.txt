@@ -1,0 +1,223 @@
+=== Pregnancies -> Glucose ===
+spearman_rho: 0.131434
+alpha: 149.20289
+beta: 0.13569938
+d_raw_train: 0.998371
+d_model_train: 0.659609
+improve_train: 1.513580
+d_raw_test: 0.974026
+d_model_test: 0.707792
+improve_test: 1.376147
+d_raw_full: 0.993490
+d_model_full: 0.669271
+p_ks_model_full: 0.00000000
+
+=== BloodPressure -> Glucose ===
+spearman_rho: 0.234926
+alpha: 52.87251
+beta: 0.22768102
+d_raw_train: 0.822476
+d_model_train: 0.584691
+improve_train: 1.406685
+d_raw_test: 0.714286
+d_model_test: 0.590909
+improve_test: 1.208791
+d_raw_full: 0.800781
+d_model_full: 0.582031
+p_ks_model_full: 0.00000000
+
+=== Insulin -> Glucose ===
+spearman_rho: 0.208885
+alpha: 208.8496
+beta: 0.08285641
+d_raw_train: 0.570033
+d_model_train: 0.524430
+improve_train: 1.086957
+d_raw_test: 0.616883
+d_model_test: 0.506494
+improve_test: 1.217949
+d_raw_full: 0.574219
+d_model_full: 0.513021
+p_ks_model_full: 0.00000000
+
+=== BMI -> Glucose ===
+spearman_rho: 0.231189
+alpha: 33.98363
+beta: 0.38474931
+d_raw_train: 0.993485
+d_model_train: 0.379479
+improve_train: 2.618026
+d_raw_test: 0.967532
+d_model_test: 0.441558
+improve_test: 2.191176
+d_raw_full: 0.988281
+d_model_full: 0.389323
+p_ks_model_full: 0.00000000
+
+=== Pregnancies -> SkinThickness ===
+spearman_rho: -0.071385
+alpha: 0.44524616
+beta: 1.39374010
+d_raw_train: 0.667752
+d_model_train: 0.653094
+improve_train: 1.022444
+d_raw_test: 0.629870
+d_model_test: 0.616883
+improve_test: 1.021053
+d_raw_full: 0.657552
+d_model_full: 0.645833
+p_ks_model_full: 0.00000000
+
+=== BloodPressure -> SkinThickness ===
+spearman_rho: 0.127512
+alpha: 1.0498385e-05
+beta: 2.33846445
+d_raw_train: 0.926710
+d_model_train: 0.713355
+improve_train: 1.299087
+d_raw_test: 0.883117
+d_model_test: 0.668831
+improve_test: 1.320388
+d_raw_full: 0.917969
+d_model_full: 0.704427
+p_ks_model_full: 0.00000000
+
+=== Insulin -> SkinThickness ===
+spearman_rho: 0.547120
+alpha: 14.083655
+beta: 0.85100097
+d_raw_train: 0.462541
+d_model_train: 0.524430
+improve_train: 0.881988
+d_raw_test: 0.415584
+d_model_test: 0.467532
+improve_test: 0.888889
+d_raw_full: 0.451823
+d_model_full: 0.513021
+p_ks_model_full: 0.00000000
+
+=== BMI -> SkinThickness ===
+spearman_rho: 0.431679
+alpha: 1.1208297e-07
+beta: 3.95168024
+d_raw_train: 0.439739
+d_model_train: 0.713355
+improve_train: 0.616438
+d_raw_test: 0.435065
+d_model_test: 0.668831
+improve_test: 0.650485
+d_raw_full: 0.437500
+d_model_full: 0.704427
+p_ks_model_full: 0.00000000
+
+=== Pregnancies -> DiabetesPedigreeFunction ===
+spearman_rho: -0.043873
+alpha: 0.44991118
+beta: 0.08269044
+d_raw_train: 0.786645
+d_model_train: 0.444625
+improve_train: 1.769231
+d_raw_test: 0.798701
+d_model_test: 0.461039
+improve_test: 1.732394
+d_raw_full: 0.789062
+d_model_full: 0.447917
+p_ks_model_full: 0.00000000
+
+=== BloodPressure -> DiabetesPedigreeFunction ===
+spearman_rho: 0.033150
+alpha: 0.23909971
+beta: 0.13874083
+d_raw_train: 0.964169
+d_model_train: 0.501629
+improve_train: 1.922078
+d_raw_test: 0.915584
+d_model_test: 0.448052
+improve_test: 2.043478
+d_raw_full: 0.954427
+d_model_full: 0.489583
+p_ks_model_full: 0.00000000
+
+=== Insulin -> DiabetesPedigreeFunction ===
+spearman_rho: 0.184988
+alpha: 0.55224074
+beta: 0.05048979
+d_raw_train: 0.524430
+d_model_train: 0.330619
+improve_train: 1.586207
+d_raw_test: 0.532468
+d_model_test: 0.357143
+improve_test: 1.490909
+d_raw_full: 0.513021
+d_model_full: 0.335938
+p_ks_model_full: 0.00000000
+
+=== BMI -> DiabetesPedigreeFunction ===
+spearman_rho: 0.139032
+alpha: 0.18264394
+beta: 0.23445274
+d_raw_train: 0.986971
+d_model_train: 0.475570
+improve_train: 2.075342
+d_raw_test: 0.980519
+d_model_test: 0.454545
+improve_test: 2.157143
+d_raw_full: 0.985677
+d_model_full: 0.471354
+p_ks_model_full: 0.00000000
+
+=== Pregnancies -> Age ===
+spearman_rho: 0.604044
+alpha: 34.325034
+beta: 0.04187364
+d_raw_train: 1.000000
+d_model_train: 0.485342
+improve_train: 2.060403
+d_raw_test: 1.000000
+d_model_test: 0.512987
+improve_test: 1.949367
+d_raw_full: 1.000000
+d_model_full: 0.490885
+p_ks_model_full: 0.00000000
+
+=== BloodPressure -> Age ===
+spearman_rho: 0.349816
+alpha: 24.921986
+beta: 0.07025702
+d_raw_train: 0.827362
+d_model_train: 0.548860
+improve_train: 1.507418
+d_raw_test: 0.818182
+d_model_test: 0.532468
+improve_test: 1.536585
+d_raw_full: 0.824219
+d_model_full: 0.545573
+p_ks_model_full: 0.00000000
+
+=== Insulin -> Age ===
+spearman_rho: -0.094485
+alpha: 38.078563
+beta: 0.02556754
+d_raw_train: 0.482085
+d_model_train: 0.296417
+improve_train: 1.626374
+d_raw_test: 0.538961
+d_model_test: 0.370130
+improve_test: 1.456140
+d_raw_full: 0.493490
+d_model_full: 0.311198
+p_ks_model_full: 0.00000000
+
+=== BMI -> Age ===
+spearman_rho: 0.129228
+alpha: 21.744441
+beta: 0.11872460
+d_raw_train: 0.190554
+d_model_train: 0.535831
+improve_train: 0.355623
+d_raw_test: 0.194805
+d_model_test: 0.577922
+improve_test: 0.337079
+d_raw_full: 0.191406
+d_model_full: 0.544271
+p_ks_model_full: 0.00000000

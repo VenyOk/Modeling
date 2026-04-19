@@ -1,5 +1,8 @@
-﻿import csv
+import csv
+import math
 import random
+from pathlib import Path
+from statistics import NormalDist
 
 import matplotlib
 import numpy as np
@@ -10,11 +13,21 @@ import matplotlib.pyplot as plt
 plt.rcParams["font.family"] = "DejaVu Sans"
 plt.rcParams["axes.unicode_minus"] = False
 
-ASSOCIATION_MATRIX_FILE = "association_matrix.csv"
+DIR = Path(__file__).resolve().parent
+DIABETES_CSV = DIR.parent / "diabetes.csv"
+
+SPEARMAN_MATRIX_FILE = DIR / "spearman_matrix.csv"
+SPEARMAN_MATRIX_PNG = DIR / "spearman_matrix.png"
 STRONG_RELATION_THRESHOLD = 0.45
-TRUTH_TABLE_FILE = "truth_table.csv"
-LOGIC_FORMS_FILE = "extra_features_sdnf.txt"
-FIXED_SELECTED_FEATURES = ["Glucose", "SkinThickness", "DiabetesPedigreeFunction", "Age"]
+USE_NORMAL_SIGNIFICANCE_TEST = True
+SIGNIFICANCE_ALPHA = 0.05
+CLUSTERS_CSV = DIR / "clusters.csv"
+CLUSTER_SUMMARY_CSV = DIR / "cluster_summary.csv"
+TRUTH_TABLE_FILE = DIR / "truth_table.csv"
+KMEANS_PLOT = DIR / "kmeans_clusters_2d.png"
+RANK_LEVELS_SUMMARY_CSV = DIR / "rank_levels_summary.csv"
+RANK_LEVELS_FOR_SWEEP = (2, 3, 4, 5, 8, 12, 16, 24, 32, 48, 64, None)
+EXPORT_RANK_LEVELS = 16
 
 
 def load_data(path):
@@ -32,25 +45,140 @@ def median_binarize(data):
     return medians, data > medians
 
 
-def load_matrix_csv(path, expected_feature_names):
-    with open(path, "r", encoding="utf-8", newline="") as file:
-        reader = csv.reader(file)
-        header = next(reader)
-        file_features = header[1:]
-        if file_features != expected_feature_names:
-            raise ValueError("association_matrix.csv does not match feature order in diabetes.csv")
-        rows = list(reader)
-    row_features = [row[0] for row in rows]
-    if row_features != expected_feature_names:
-        raise ValueError("association_matrix.csv row labels do not match diabetes.csv")
-    matrix = np.array([[float(x) for x in row[1:]] for row in rows], dtype=float)
-    return matrix
+def rankdata_average(values):
+    values = np.asarray(values, dtype=float)
+    n = len(values)
+    sort_order = np.argsort(values, kind="mergesort")
+    sorted_vals = values[sort_order]
+    ranks = np.empty(n, dtype=float)
+    i = 0
+    while i < n:
+        j = i + 1
+        while j < n and sorted_vals[j] == sorted_vals[i]:
+            j += 1
+        avg = (i + 1 + j) / 2.0
+        for k in range(i, j):
+            ranks[sort_order[k]] = avg
+        i = j
+    return ranks
+
+
+def fixed_level_ranks_equal_frequency(values, num_levels):
+    values = np.asarray(values, dtype=float)
+    n = len(values)
+    num_levels = int(num_levels)
+    if num_levels < 2:
+        raise ValueError("num_levels must be >= 2")
+    num_levels = min(num_levels, n)
+    order = np.argsort(values, kind="mergesort")
+    pos = np.empty(n, dtype=int)
+    pos[order] = np.arange(n)
+    bin_id = (pos * num_levels) // n
+    bin_id = np.clip(bin_id, 0, num_levels - 1)
+    return (bin_id + 1).astype(float)
+
+
+def spearman_correlation_matrix(data, num_rank_levels=None):
+    n_samples, n_features = data.shape
+    if num_rank_levels is None:
+        cols = [rankdata_average(data[:, j]) for j in range(n_features)]
+    else:
+        k = max(2, min(int(num_rank_levels), n_samples))
+        cols = [fixed_level_ranks_equal_frequency(data[:, j], k) for j in range(n_features)]
+    rank_matrix = np.column_stack(cols)
+    coeff = np.corrcoef(rank_matrix, rowvar=False)
+    coeff = np.nan_to_num(coeff, nan=0.0, posinf=1.0, neginf=-1.0)
+    np.fill_diagonal(coeff, 1.0)
+    return coeff
+
+
+def save_matrix_csv(feature_names, matrix, path):
+    with open(path, "w", encoding="utf-8", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(["feature"] + feature_names)
+        for feature_name, row in zip(feature_names, matrix):
+            writer.writerow([feature_name] + [f"{value:.6f}" for value in row])
+
+
+def draw_spearman_matrix_table(feature_names, matrix, path, title="Матрица корреляции Спирмена (ранги)"):
+    size = len(feature_names)
+    fig, axis = plt.subplots(figsize=(2.4 * size, 0.9 * size + 2))
+    axis.axis("off")
+    cell_text = [[f"{value:.4f}" for value in row] for row in matrix]
+    table = axis.table(
+        cellText=cell_text,
+        rowLabels=feature_names,
+        colLabels=feature_names,
+        cellLoc="center",
+        rowLoc="center",
+        loc="center",
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1.1, 1.5)
+    center = 0.0
+    for (row, col), cell in table.get_celld().items():
+        cell.set_edgecolor("#444444")
+        cell.set_linewidth(0.8)
+        if row == 0 or col == -1:
+            cell.set_facecolor("#d9e6f2")
+            cell.set_text_props(weight="bold")
+        else:
+            value = matrix[row - 1, col]
+            delta = value - center
+            if row - 1 == col:
+                cell.set_facecolor("#fff4b8")
+            elif delta >= 0.2:
+                cell.set_facecolor("#fde2e2")
+            elif delta <= -0.2:
+                cell.set_facecolor("#e3f2e1")
+            else:
+                cell.set_facecolor("#f4f4f4")
+    axis.set_title(title, pad=20)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
 
 
 def strength_matrix(matrix):
     strength = np.abs(matrix).astype(float)
     np.fill_diagonal(strength, 0.0)
     return strength
+
+
+def spearman_pairwise_normal_pvalues(coeff_matrix, n_samples):
+    p = coeff_matrix.shape[0]
+    pvals = np.ones((p, p), dtype=float)
+    if n_samples < 3:
+        return pvals
+    scale = math.sqrt(n_samples - 1)
+    nd = NormalDist(0, 1)
+    for i in range(p):
+        for j in range(i + 1, p):
+            rho = float(coeff_matrix[i, j])
+            z = scale * rho
+            pv = 2 * (1 - nd.cdf(abs(z)))
+            pvals[i, j] = pvals[j, i] = pv
+    return pvals
+
+
+def strength_matrix_significant_bonferroni(coeff_matrix, n_samples, alpha=SIGNIFICANCE_ALPHA):
+    p = coeff_matrix.shape[0]
+    strength = np.zeros((p, p), dtype=float)
+    m = p * (p - 1) // 2
+    if m == 0 or n_samples < 3:
+        return strength, 0, float("nan"), float("nan")
+    alpha_pair = alpha / m
+    z_crit = NormalDist(0, 1).inv_cdf(1 - alpha_pair / 2)
+    pvals = spearman_pairwise_normal_pvalues(coeff_matrix, n_samples)
+    count = 0
+    for i in range(p):
+        for j in range(i + 1, p):
+            if pvals[i, j] < alpha_pair:
+                v = abs(float(coeff_matrix[i, j]))
+                strength[i, j] = strength[j, i] = v
+                count += 1
+    return strength, count, alpha_pair, z_crit
 
 
 def connected_components(strength, threshold):
@@ -187,7 +315,7 @@ def draw_cluster_projection(points_standardized, labels_aligned, centroids_stand
     )
     axis.set_xlabel("PC1")
     axis.set_ylabel("PC2")
-    axis.set_title("k-means clusters in PCA 2D projection")
+    axis.set_title("k-means clusters in PCA 2D projection (Spearman selection)")
     axis.grid(True, alpha=0.25)
     axis.legend()
     fig.tight_layout()
@@ -229,11 +357,6 @@ def save_cluster_summary_csv(feature_names, selected_indices, medians, data, lab
             writer.writerow(row)
 
 
-def get_fixed_selected_indices(feature_names):
-    index_by_name = {name: idx for idx, name in enumerate(feature_names)}
-    return [index_by_name[name] for name in FIXED_SELECTED_FEATURES]
-
-
 def build_truth_table_rows(binary_data, labels_aligned):
     counts_by_pattern = {}
     for bits, label in zip(binary_data.astype(int), np.asarray(labels_aligned, dtype=int)):
@@ -267,169 +390,118 @@ def count_truth_table_labels(truth_table_rows):
     return count_binary_labels(labels)
 
 
-def merge_terms(left, right):
-    merged = []
-    differences = 0
-    for left_bit, right_bit in zip(left, right):
-        if left_bit == right_bit:
-            merged.append(left_bit)
-            continue
-        if left_bit == -1 or right_bit == -1:
-            return None
-        differences += 1
-        merged.append(-1)
-        if differences > 1:
-            return None
-    if differences != 1:
-        return None
-    return tuple(merged)
-
-
-def term_covers(term, pattern):
-    return all(term_bit == -1 or term_bit == pattern_bit for term_bit, pattern_bit in zip(term, pattern))
-
-
-def term_covers_any(term, patterns):
-    return any(term_covers(term, pattern) for pattern in patterns)
-
-
-def term_literal_count(term):
-    return sum(bit != -1 for bit in term)
-
-
-def format_dnf(feature_names, terms):
-    if not terms:
-        return "0"
-    variable_names = [f"x{i}" for i in range(1, len(feature_names) + 1)]
-    if any(all(bit == -1 for bit in term) for term in terms):
-        return "1"
-    formatted_terms = []
-    for pattern in sorted(terms, key=lambda term: (term_literal_count(term), term)):
-        literals = [
-            name if bit == 1 else f"!{name}"
-            for name, bit in zip(variable_names, pattern)
-            if bit != -1
-        ]
-        if literals:
-            formatted_terms.append("(" + " & ".join(literals) + ")")
-        else:
-            formatted_terms.append("1")
-    return " | ".join(formatted_terms)
-
-
-def build_sdnf_terms(truth_table_rows):
-    return {
-        tuple(int(bit) for bit in row[:-1])
-        for row in truth_table_rows
-        if int(row[-1]) == 1
-    }
-
-
-def build_dnf_terms(truth_table_rows):
-    positive_patterns = {
-        tuple(row[:-1])
-        for row in truth_table_rows
-        if int(row[-1]) == 1
-    }
-    negative_patterns = {
-        tuple(row[:-1])
-        for row in truth_table_rows
-        if int(row[-1]) == 0
-    }
-    if not positive_patterns:
-        return set()
-    current_terms = set(positive_patterns)
-    prime_implicants = set()
-    while current_terms:
-        current_list = sorted(current_terms)
-        used_terms = set()
-        next_terms = set()
-        for left_index in range(len(current_list)):
-            for right_index in range(left_index + 1, len(current_list)):
-                merged = merge_terms(current_list[left_index], current_list[right_index])
-                if merged is None or term_covers_any(merged, negative_patterns):
-                    continue
-                used_terms.add(current_list[left_index])
-                used_terms.add(current_list[right_index])
-                next_terms.add(merged)
-        prime_implicants.update(term for term in current_terms if term not in used_terms)
-        current_terms = next_terms
-    prime_implicants = {
-        term for term in prime_implicants
-        if term_covers_any(term, positive_patterns)
-    }
-    coverage = {
-        pattern: {term for term in prime_implicants if term_covers(term, pattern)}
-        for pattern in positive_patterns
-    }
-    selected_terms = set()
-    covered_patterns = set()
-    for pattern, covering_terms in coverage.items():
-        if len(covering_terms) == 1:
-            selected_terms.update(covering_terms)
-    for term in selected_terms:
-        covered_patterns.update(pattern for pattern in positive_patterns if term_covers(term, pattern))
-    remaining_patterns = positive_patterns - covered_patterns
-    available_terms = set(prime_implicants)
-    while remaining_patterns:
-        best_term = max(
-            available_terms,
-            key=lambda term: (
-                sum(term_covers(term, pattern) for pattern in remaining_patterns),
-                -term_literal_count(term),
-                tuple(-1 if bit == -1 else bit for bit in term),
-            ),
-        )
-        selected_terms.add(best_term)
-        covered_now = {pattern for pattern in remaining_patterns if term_covers(best_term, pattern)}
-        remaining_patterns -= covered_now
-        available_terms.discard(best_term)
-    reduced_terms = set(selected_terms)
-    for term in sorted(selected_terms, key=lambda item: (term_literal_count(item), item), reverse=True):
-        other_terms = reduced_terms - {term}
-        if positive_patterns and all(any(term_covers(other, pattern) for other in other_terms) for pattern in positive_patterns if term_covers(term, pattern)):
-            reduced_terms.discard(term)
-    return reduced_terms
-
-
-def save_logic_forms(path, sdnf, dnf):
-    with open(path, "w", encoding="utf-8", newline="") as file:
-        file.write(f"SDNF: {sdnf}\n")
-        file.write(f"DNF: {dnf}\n")
-
-
-def evaluate_dnf_terms(terms, binary_data):
-    labels = []
-    for bits in binary_data.astype(int):
-        pattern = tuple(int(bit) for bit in bits)
-        label = 1 if any(term_covers(term, pattern) for term in terms) else 0
-        labels.append(label)
-    return np.array(labels, dtype=int)
-
-
-def compare_labels(predicted_labels, reference_labels):
-    predicted_labels = np.asarray(predicted_labels, dtype=int)
-    reference_labels = np.asarray(reference_labels, dtype=int)
-    matches = int((predicted_labels == reference_labels).sum())
-    total = int(len(reference_labels))
-    accuracy = matches / total if total else 0.0
-    return matches, total, accuracy
-
-
-def print_text_output(feature_names, selected_indices, truth_table_counts, cluster_counts, dnf_counts, dnf_match_stats, dnf):
+def print_text_output(
+    feature_names,
+    selected_indices,
+    truth_table_counts,
+    cluster_counts,
+    selection_note,
+):
     selected = ", ".join(feature_names[idx] for idx in selected_indices)
+    print(f"Отбор признаков: {selection_note}")
     print(f"Выбранные признаки: {selected}")
     print(f"Метки Y в таблице истинности -> 0: {truth_table_counts[0]}, 1: {truth_table_counts[1]}")
     print(f"Метки кластеров -> 0: {cluster_counts[0]}, 1: {cluster_counts[1]}")
-    print(f"Метки ДНФ -> 0: {dnf_counts[0]}, 1: {dnf_counts[1]}")
-    print(f"Сравнение ДНФ и кластеров -> совпадения: {dnf_match_stats[0]}/{dnf_match_stats[1]}, точность: {dnf_match_stats[2]:.4f}")
-    print(f"ДНФ: {dnf}")
+
+
+def strength_and_edge_threshold(coeff_matrix, n_samples):
+    if USE_NORMAL_SIGNIFICANCE_TEST:
+        strength, sig_pairs, alpha_pair, z_crit = strength_matrix_significant_bonferroni(
+            coeff_matrix, n_samples, SIGNIFICANCE_ALPHA
+        )
+        return strength, 1e-12, sig_pairs
+    strength = strength_matrix(coeff_matrix)
+    return strength, STRONG_RELATION_THRESHOLD, None
+
+
+def sweep_rank_levels(feature_names, data, outcome):
+    n_samples = data.shape[0]
+    p = len(feature_names)
+    rows = []
+    print("--- Svodka: chislo urovnej ranzhirovki K (ravnochastotno 1..K po pozicijam v sortirovke) ---")
+    for num_levels in RANK_LEVELS_FOR_SWEEP:
+        coeff = spearman_correlation_matrix(data, num_levels)
+        strength, edge_thr, sig_pairs = strength_and_edge_threshold(coeff, n_samples)
+        selected = select_features(strength, edge_thr, feature_names)
+        names = ";".join(feature_names[i] for i in selected)
+        off = coeff.astype(float).copy()
+        np.fill_diagonal(off, 0.0)
+        mean_abs = float(np.abs(off).sum() / max(p * (p - 1), 1))
+        sel_points = data[:, selected]
+        std_pts = standardize(sel_points)
+        km = kmeans(std_pts, k=2, n_init=30, max_iterations=300, seed=42)
+        _, acc = align_clusters_to_outcome(km["labels"], outcome)
+        label = "full" if num_levels is None else str(int(num_levels))
+        rows.append(
+            {
+                "rank_levels": label,
+                "selected_count": len(selected),
+                "selected": names,
+                "significant_pairs": "" if sig_pairs is None else int(sig_pairs),
+                "mean_abs_rho_off_diag": f"{mean_abs:.6f}",
+                "cluster_match_accuracy": f"{acc:.4f}",
+                "kmeans_inertia": f"{km['inertia']:.2f}",
+            }
+        )
+        sp = "-" if sig_pairs is None else str(sig_pairs)
+        print(
+            f"K={label:>5}  n_sel={len(selected):2}  signif_pairs={sp:>3}  "
+            f"mean|rho|_offd={mean_abs:.4f}  cluster_vs_outcome={acc:.4f}  -> {names}"
+        )
+    with open(RANK_LEVELS_SUMMARY_CSV, "w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(
+            file,
+            fieldnames=[
+                "rank_levels",
+                "selected_count",
+                "selected",
+                "significant_pairs",
+                "mean_abs_rho_off_diag",
+                "cluster_match_accuracy",
+                "kmeans_inertia",
+            ],
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+    print(f"Svodka zapisana: {RANK_LEVELS_SUMMARY_CSV}")
 
 
 def main():
-    feature_names, data, outcome = load_data("diabetes.csv")
+    if not DIABETES_CSV.is_file():
+        raise FileNotFoundError(f"Ожидается файл данных: {DIABETES_CSV}")
+
+    feature_names, data, outcome = load_data(DIABETES_CSV)
     medians, binary_data = median_binarize(data)
-    selected_indices = get_fixed_selected_indices(feature_names)
+    n_samples = data.shape[0]
+    sweep_rank_levels(feature_names, data, outcome)
+    coeff_matrix = spearman_correlation_matrix(data, EXPORT_RANK_LEVELS)
+    save_matrix_csv(feature_names, coeff_matrix, SPEARMAN_MATRIX_FILE)
+    title_matrix = (
+        "Матрица корреляции Спирмена (полные ранги 1..n)"
+        if EXPORT_RANK_LEVELS is None
+        else f"Матрица корреляции по рангам с K={EXPORT_RANK_LEVELS} уровнями"
+    )
+    draw_spearman_matrix_table(feature_names, coeff_matrix, SPEARMAN_MATRIX_PNG, title=title_matrix)
+    if USE_NORMAL_SIGNIFICANCE_TEST:
+        strength, sig_pairs, alpha_pair, z_crit = strength_matrix_significant_bonferroni(
+            coeff_matrix, n_samples, SIGNIFICANCE_ALPHA
+        )
+        m = len(feature_names) * (len(feature_names) - 1) // 2
+        print(
+            f"Проверка из лекции: z = sqrt(n-1)*rho ~ N(0,1) при H0, n={n_samples}, пар m={m}, "
+            f"alpha={SIGNIFICANCE_ALPHA}, Бонферрони alpha/m={alpha_pair:.6g}, |z|_крит={z_crit:.4f}, "
+            f"значимых пар: {sig_pairs}"
+        )
+        edge_threshold = 1e-12
+        selection_note = (
+            f"корреляция Спирмена; рёбра графа только при p < alpha/m "
+            f"(двусторонний нормальный тест по z=sqrt(n-1)*rho)"
+        )
+    else:
+        strength = strength_matrix(coeff_matrix)
+        edge_threshold = STRONG_RELATION_THRESHOLD
+        selection_note = f"корреляция Спирмена; |rho| >= {STRONG_RELATION_THRESHOLD} для ребра графа"
+    selected_indices = select_features(strength, edge_threshold, feature_names)
     selected_points = data[:, selected_indices]
     standardized_points = standardize(selected_points)
     km = kmeans(standardized_points, k=2, n_init=30, max_iterations=300, seed=42)
@@ -450,7 +522,7 @@ def main():
         best["labels_raw"],
         best["labels_aligned"],
         outcome,
-        "clusters.csv",
+        CLUSTERS_CSV,
     )
     save_cluster_summary_csv(
         feature_names,
@@ -458,7 +530,7 @@ def main():
         medians,
         data,
         best["labels_aligned"],
-        "cluster_summary.csv",
+        CLUSTER_SUMMARY_CSV,
     )
     truth_table_rows = build_truth_table_rows(binary_data, best["labels_aligned"])
     save_truth_table_csv(
@@ -470,29 +542,18 @@ def main():
         standardized_points,
         best["labels_aligned"],
         best["centroids_standardized"],
-        "kmeans_clusters_2d.png",
+        KMEANS_PLOT,
     )
     truth_table_counts = count_truth_table_labels(truth_table_rows)
     cluster_counts = count_binary_labels(best["labels_aligned"])
-    sdnf_terms = build_sdnf_terms(truth_table_rows)
-    sdnf = format_dnf(feature_names, sdnf_terms)
-    dnf_terms = build_dnf_terms(truth_table_rows)
-    dnf = format_dnf(feature_names, dnf_terms)
-    save_logic_forms(LOGIC_FORMS_FILE, sdnf, dnf)
-    dnf_labels = evaluate_dnf_terms(dnf_terms, binary_data)
-    dnf_counts = count_binary_labels(dnf_labels)
-    dnf_match_stats = compare_labels(dnf_labels, best["labels_aligned"])
     print_text_output(
         feature_names,
         best["selected_indices"],
         truth_table_counts,
         cluster_counts,
-        dnf_counts,
-        dnf_match_stats,
-        dnf,
+        selection_note,
     )
 
 
 if __name__ == "__main__":
     main()
-

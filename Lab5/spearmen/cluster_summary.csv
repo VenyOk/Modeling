@@ -1,0 +1,3 @@
+class,count,BMI_centroid,BMI_vs_median,Age_centroid,Age_vs_median
+0,522,31.390038,below_median,26.392720,below_median
+1,246,33.271138,above_median,47.772358,above_median
