@@ -4,7 +4,7 @@ from pathlib import Path
 
 import matplotlib
 import numpy as np
-from scipy.stats import ks_2samp
+from scipy.stats import ks_2samp, t as student_t
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -13,21 +13,127 @@ plt.rcParams["font.family"] = "DejaVu Sans"
 plt.rcParams["axes.unicode_minus"] = False
 
 DIR = Path(__file__).resolve().parent
-SPEARMAN_EDGE_THRESHOLD = 0.3
+SPEARMAN_SIGNIFICANCE_ALPHA = 0.05
 EXPORT_RANK_LEVELS = 16
-RANDOM_SEED = 42
-LOG_FLOOR = 1e-9
+TRAIN_TEST_STRATIFY_BINS = 16
+TEST_SET_FRACTION = 0.2
+TRAIN_TEST_SPLIT_SEED = 67
+TRAIN_TEST_BALANCE_TRIES = 96
 KS_SIGNIFICANCE_LEVEL = 0.05
+GLUCOSE_EXCLUDE = frozenset({"Glucose", "Outcome", "Insulin"})
+PCA_COMPONENTS_GLUCOSE = 4
+ZERO_TO_MEDIAN_EXCLUDE = frozenset({"Outcome", "Pregnancies", "Glucose", "Insulin"})
 
 
-def load_data(path):
+def _replace_zeros_with_median(column, name):
+    if name in ZERO_TO_MEDIAN_EXCLUDE:
+        return column
+    col = np.asarray(column, dtype=float)
+    nonzero = col[col != 0]
+    if nonzero.size == 0:
+        return col
+    med = float(np.median(nonzero))
+    out = col.copy()
+    out[out == 0] = med
+    return out
+
+
+def load_glucose_regression(path):
     with open(path, "r", encoding="utf-8", newline="") as file:
         reader = csv.DictReader(file)
         rows = list(reader)
-    feature_names = [name for name in reader.fieldnames if name != "Outcome"]
-    data = np.array([[float(row[name]) for name in feature_names] for row in rows], dtype=float)
-    outcome = np.array([int(row["Outcome"]) for row in rows], dtype=int)
-    return feature_names, data, outcome
+    fieldnames = reader.fieldnames
+    pred_names = [name for name in fieldnames if name not in GLUCOSE_EXCLUDE]
+    n_pred_expected = len(fieldnames) - len(GLUCOSE_EXCLUDE)
+    if len(pred_names) != n_pred_expected:
+        raise ValueError(f"ожидается {n_pred_expected} предикторов, получено {len(pred_names)}")
+    X = np.array([[float(row[name]) for name in pred_names] for row in rows], dtype=float)
+    for j, name in enumerate(pred_names):
+        X[:, j] = _replace_zeros_with_median(X[:, j], name)
+    y = np.array([float(row["Glucose"]) for row in rows], dtype=float)
+    mask = y > 0
+    X = X[mask]
+    y = y[mask]
+    return pred_names, X, y
+
+
+def fit_standardizer(X):
+    mean = X.mean(axis=0)
+    std = X.std(axis=0)
+    std = np.where(std == 0, 1.0, std)
+    return mean, std
+
+
+def apply_standardizer(X, mean, std):
+    return (X - mean) / std
+
+
+def _gaussian_solve(A, b):
+    A = np.asarray(A, dtype=float).copy()
+    b = np.asarray(b, dtype=float).copy().ravel()
+    n = A.shape[0]
+    if A.shape[1] != n or b.shape[0] != n:
+        raise ValueError("ожидается квадратная A и b той же размерности")
+    for k in range(n):
+        pivot = int(k + np.argmax(np.abs(A[k:, k])))
+        if abs(A[pivot, k]) < 1e-15:
+            raise ValueError("матрица нормальных уравнений вырождена или плохо обусловлена")
+        if pivot != k:
+            A[[k, pivot], :] = A[[pivot, k], :]
+            b[[k, pivot]] = b[[pivot, k]]
+        for i in range(k + 1, n):
+            m = A[i, k] / A[k, k]
+            A[i, k:] -= m * A[k, k:]
+            b[i] -= m * b[k]
+    x = np.zeros(n, dtype=float)
+    for i in range(n - 1, -1, -1):
+        s = b[i] - float(np.dot(A[i, i + 1 :], x[i + 1 :]))
+        den = A[i, i]
+        if abs(den) < 1e-15:
+            raise ValueError("нулевой диагональный элемент при обратной подстановке")
+        x[i] = s / den
+    return x
+
+
+def ols_fit(X, y):
+    n = X.shape[0]
+    X1 = np.column_stack([np.ones(n), X])
+    XtX = X1.T @ X1
+    Xty = X1.T @ y
+    return _gaussian_solve(XtX, Xty)
+
+
+def ols_predict(X, w):
+    X1 = np.column_stack([np.ones(len(X)), X])
+    return X1 @ w
+
+
+def pca_top_components(X, k):
+    U, s, Vt = np.linalg.svd(X, full_matrices=False)
+    return Vt[:k]
+
+
+def rmse(y_true, y_pred):
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+    return float(np.sqrt(np.mean((y_true - y_pred) ** 2)))
+
+
+def mae(y_true, y_pred):
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+    return float(np.mean(np.abs(y_true - y_pred)))
+
+
+def metrics_reg(y_true, y_pred):
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+    err_rmse = rmse(y_true, y_pred)
+    err_mae = mae(y_true, y_pred)
+    ss_res = float(np.sum((y_true - y_pred) ** 2))
+    ss_tot = float(np.sum((y_true - np.mean(y_true)) ** 2))
+    r2 = float(1.0 - ss_res / ss_tot) if ss_tot > 0 else 0.0
+    return err_rmse, err_mae, r2
 
 
 def rankdata_average(values):
@@ -77,66 +183,66 @@ def spearman_correlation_matrix(data, num_rank_levels=None):
     return coeff
 
 
-def save_matrix_csv(feature_names, matrix, path):
-    with open(path, "w", encoding="utf-8", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(["feature"] + feature_names)
-        for feature_name, row in zip(feature_names, matrix):
-            writer.writerow([feature_name] + [f"{value:.6f}" for value in row])
-
-
-def draw_spearman_matrix_table(feature_names, matrix, path, title="Матрица корреляции Спирмена (ранги)"):
-    size = len(feature_names)
-    fig, axis = plt.subplots(figsize=(2.4 * size, 0.9 * size + 2))
-    axis.axis("off")
-    cell_text = [[f"{value:.4f}" for value in row] for row in matrix]
-    table = axis.table(
-        cellText=cell_text,
-        rowLabels=feature_names,
-        colLabels=feature_names,
-        cellLoc="center",
-        rowLoc="center",
-        loc="center",
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    table.scale(1.1, 1.5)
-    center = 0.0
-    for (row, col), cell in table.get_celld().items():
-        cell.set_edgecolor("#444444")
-        cell.set_linewidth(0.8)
-        if row == 0 or col == -1:
-            cell.set_facecolor("#d9e6f2")
-            cell.set_text_props(weight="bold")
-        else:
-            value = matrix[row - 1, col]
-            delta = value - center
-            if row - 1 == col:
-                cell.set_facecolor("#fff4b8")
-            elif delta >= 0.2:
-                cell.set_facecolor("#fde2e2")
-            elif delta <= -0.2:
-                cell.set_facecolor("#e3f2e1")
-            else:
-                cell.set_facecolor("#f4f4f4")
-    axis.set_title(title, pad=20)
-    fig.tight_layout()
-    fig.savefig(path, dpi=150)
-    plt.close(fig)
-
-
 def strength_matrix(matrix):
     strength = np.abs(matrix).astype(float)
     np.fill_diagonal(strength, 0.0)
     return strength
 
 
-def connected_components(strength, threshold):
+def spearman_criterion_n(n_samples):
+    return int(n_samples)
+
+
+def spearman_pair_criteria(rho, n, alpha):
+    if n < 3:
+        return None
+    k_df = n - 2
+    rho = float(np.clip(rho, -1.0, 1.0))
+    t_kp = float(student_t.ppf(1.0 - alpha / 2.0, k_df))
+    T_kp = t_kp * math.sqrt(max(0.0, 1.0 - rho * rho) / k_df)
+    abs_rho = abs(rho)
+    return k_df, t_kp, T_kp, abs_rho
+
+
+def spearman_pair_significant(rho, n, alpha):
+    c = spearman_pair_criteria(rho, n, alpha)
+    if c is None:
+        return False
+    k_df, t_kp, T_kp, abs_rho = c
+    return abs_rho >= T_kp
+
+
+def spearman_significant_mask(coeff, n_spearman, alpha):
+    p = coeff.shape[0]
+    mask = np.zeros((p, p), dtype=bool)
+    for i in range(p):
+        for j in range(i + 1, p):
+            if spearman_pair_significant(coeff[i, j], n_spearman, alpha):
+                mask[i, j] = True
+                mask[j, i] = True
+    return mask
+
+
+def ranks_work_control_pooled(X_tr, X_te, col):
+    v = np.concatenate([X_tr[:, col], X_te[:, col]])
+    r = rankdata_average(v)
+    n_tr = X_tr.shape[0]
+    return r[:n_tr], r[n_tr:]
+
+
+def kolmogorov_smirnov_pair_stats(x, y, alpha):
+    r = ks_2samp(np.asarray(x, dtype=float), np.asarray(y, dtype=float))
+    d = float(r.statistic)
+    p = float(r.pvalue)
+    return d, p, p < alpha
+
+
+def connected_components(strength, significant_mask):
     count = strength.shape[0]
     adjacency = [[] for _ in range(count)]
     for i in range(count):
         for j in range(i + 1, count):
-            if strength[i, j] >= threshold:
+            if significant_mask[i, j]:
                 adjacency[i].append(j)
                 adjacency[j].append(i)
     visited = [False] * count
@@ -158,8 +264,8 @@ def connected_components(strength, threshold):
     return components
 
 
-def select_features(strength, threshold, feature_names):
-    components = connected_components(strength, threshold)
+def select_features(strength, significant_mask, feature_names):
+    components = connected_components(strength, significant_mask)
     selected = []
     for component in components:
         if len(component) == 1:
@@ -182,410 +288,124 @@ def select_features(strength, threshold, feature_names):
     return sorted(set(selected))
 
 
-"""
-def median_binarize(data):
-    medians = np.median(data, axis=0)
-    return medians, data > medians
+def _y_strata_quantile_ranks(y, n_strata_requested):
+    y = np.asarray(y, dtype=float)
+    n = int(y.shape[0])
+    n_strata = max(3, min(int(n_strata_requested), max(3, n // max(4, int(np.ceil(1.0 / TEST_SET_FRACTION))))))
+    n_strata = min(n_strata, n // 2)
+    r = rankdata_average(y)
+    tmp = (r - 1.0) * float(n_strata) / float(max(n, 1))
+    sid = np.minimum(np.floor(tmp).astype(np.int64), n_strata - 1)
+    sid = np.clip(sid, 0, n_strata - 1).astype(int)
+    return sid, n_strata
 
 
-def standardize(points):
-    mean = points.mean(axis=0)
-    std = points.std(axis=0)
-    std = np.where(std == 0, 1.0, std)
-    standardized = (points - mean) / std
-    return standardized
+def covariate_mean_balance_score(X, tr, te):
+    X = np.asarray(X, dtype=float)
+    std = X.std(axis=0)
+    std = np.where(std < 1e-12, 1.0, std)
+    d = np.abs(X[tr].mean(axis=0) - X[te].mean(axis=0)) / std
+    return float(np.mean(d))
 
 
-def kmeans_once(points, k, max_iterations, rng):
-    indices = rng.sample(range(len(points)), k)
-    centroids = points[np.array(indices, dtype=int)].astype(float)
-    labels = None
-    for _ in range(max_iterations):
-        distances = ((points[:, None, :] - centroids[None, :, :]) ** 2).sum(axis=2)
-        new_labels = np.argmin(distances, axis=1)
-        if labels is not None and np.array_equal(new_labels, labels):
-            break
-        labels = new_labels
-        for cluster_id in range(k):
-            mask = labels == cluster_id
-            if np.any(mask):
-                centroids[cluster_id] = points[mask].mean(axis=0)
-            else:
-                centroids[cluster_id] = points[rng.randrange(len(points))]
-    inertia = float(((points - centroids[labels]) ** 2).sum())
-    return labels.astype(int), centroids.astype(float), inertia
-
-
-def kmeans(points, k=2, n_init=30, max_iterations=300, seed=42):
-    best = None
-    for run in range(n_init):
-        rng = random.Random(seed + run * 9973)
-        labels, centroids, inertia = kmeans_once(points, k, max_iterations, rng)
-        if best is None or inertia < best["inertia"]:
-            best = {"labels": labels, "centroids": centroids, "inertia": inertia}
-    return best
-
-
-def align_clusters_to_outcome(labels, outcome):
-    labels = np.asarray(labels, dtype=int)
-    outcome = np.asarray(outcome, dtype=int)
-    direct = float((labels == outcome).mean())
-    flipped_labels = 1 - labels
-    flipped = float((flipped_labels == outcome).mean())
-    if flipped > direct:
-        return flipped_labels, flipped
-    return labels, direct
-
-
-def pca_projection(points, dimensions=2):
-    centered = points - points.mean(axis=0)
-    _, _, vt = np.linalg.svd(centered, full_matrices=False)
-    components = vt[:dimensions].T
-    projection = centered @ components
-    return projection, components, points.mean(axis=0)
-
-
-def draw_cluster_projection(points_standardized, labels_aligned, centroids_standardized, path):
-    projection, components, mean = pca_projection(points_standardized, dimensions=2)
-    centroid_projection = (centroids_standardized - mean) @ components
-    fig, axis = plt.subplots(figsize=(8, 6))
-    colors = ["#1f77b4", "#d62728"]
-    labels_aligned = np.asarray(labels_aligned, dtype=int)
-    for cluster_id in [0, 1]:
-        cluster_points = projection[labels_aligned == cluster_id]
-        axis.scatter(
-            cluster_points[:, 0],
-            cluster_points[:, 1],
-            s=24,
-            alpha=0.75,
-            color=colors[cluster_id],
-            label=f"Класс {cluster_id}",
-        )
-    axis.scatter(
-        centroid_projection[:, 0],
-        centroid_projection[:, 1],
-        s=160,
-        c="#000000",
-        marker="X",
-        label="Центроиды",
-    )
-    axis.set_xlabel("ГК1")
-    axis.set_ylabel("ГК2")
-    axis.set_title("Кластеры k-means в 2D проекции PCA (после отбора по Спирмену)")
-    axis.grid(True, alpha=0.25)
-    axis.legend()
-    fig.tight_layout()
-    fig.savefig(path, dpi=150)
-    plt.close(fig)
-
-
-def save_clusters_csv(data, feature_names, selected_indices, labels_raw, labels_aligned, outcome, path):
-    selected_names = [feature_names[idx] for idx in selected_indices]
-    with open(path, "w", encoding="utf-8", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(["id_объекта"] + selected_names + ["кластер_сырой", "кластер_сопоставленный", "Исход"])
-        for i in range(len(data)):
-            values = [f"{data[i, idx]:.6f}" for idx in selected_indices]
-            writer.writerow([i + 1] + values + [int(labels_raw[i]), int(labels_aligned[i]), int(outcome[i])])
-
-
-def save_cluster_summary_csv(feature_names, selected_indices, medians, data, labels_aligned, path):
-    selected_names = [feature_names[idx] for idx in selected_indices]
-    header = ["класс", "количество"]
-    for name in selected_names:
-        header.append(f"{name}_центроид")
-        header.append(f"{name}_относительно_медианы")
-    with open(path, "w", encoding="utf-8", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(header)
-        for class_id in [0, 1]:
-            mask = labels_aligned == class_id
-            class_data = data[mask][:, selected_indices]
-            if len(class_data):
-                centroid = class_data.mean(axis=0)
-            else:
-                centroid = np.zeros(len(selected_indices), dtype=float)
-            row = [class_id, int(mask.sum())]
-            for local_idx, feature_idx in enumerate(selected_indices):
-                value = float(centroid[local_idx])
-                direction = "выше_медианы" if value > medians[feature_idx] else "ниже_медианы"
-                row.extend([f"{value:.6f}", direction])
-            writer.writerow(row)
-
-
-def build_truth_table_rows(binary_data, labels_aligned):
-    counts_by_pattern = {}
-    for bits, label in zip(binary_data.astype(int), np.asarray(labels_aligned, dtype=int)):
-        pattern = tuple(int(bit) for bit in bits)
-        if pattern not in counts_by_pattern:
-            counts_by_pattern[pattern] = [0, 0]
-        counts_by_pattern[pattern][int(label)] += 1
-    truth_table_rows = []
-    for pattern in sorted(counts_by_pattern):
-        count0, count1 = counts_by_pattern[pattern]
-        y = 1 if count1 > count0 else 0
-        truth_table_rows.append(list(pattern) + [y])
-    return truth_table_rows
-
-
-def save_truth_table_csv(feature_names, truth_table_rows, path):
-    variable_names = [f"x{i}" for i in range(1, len(feature_names) + 1)]
-    with open(path, "w", encoding="utf-8", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerow(variable_names + ["y"])
-        writer.writerows(truth_table_rows)
-
-
-def count_binary_labels(labels):
-    labels = np.asarray(labels, dtype=int)
-    return int((labels == 0).sum()), int((labels == 1).sum())
-
-
-def count_truth_table_labels(truth_table_rows):
-    labels = [row[-1] for row in truth_table_rows]
-    return count_binary_labels(labels)
-
-
-def print_text_output(feature_names, selected_indices, truth_table_counts, cluster_counts, selection_note):
-    selected = ", ".join(feature_names[idx] for idx in selected_indices)
-    print(f"признаки: {selected}")
-    print(selection_note)
-    print(f"истинность 0/1: {truth_table_counts[0]}/{truth_table_counts[1]}")
-    print(f"кластеры 0/1: {cluster_counts[0]}/{cluster_counts[1]}")
-
-
-def sweep_rank_levels(feature_names, data, outcome):
-    p = len(feature_names)
-    rows = []
-    for num_levels in RANK_LEVELS_FOR_SWEEP:
-        coeff = spearman_correlation_matrix(data, num_levels)
-        strength = strength_matrix(coeff)
-        selected = select_features(strength, SPEARMAN_EDGE_THRESHOLD, feature_names)
-        names = ";".join(feature_names[i] for i in selected)
-        off = coeff.astype(float).copy()
-        np.fill_diagonal(off, 0.0)
-        mean_abs = float(np.abs(off).sum() / max(p * (p - 1), 1))
-        sel_points = data[:, selected]
-        std_pts = standardize(sel_points)
-        km = kmeans(std_pts, k=2, n_init=30, max_iterations=300, seed=RANDOM_SEED)
-        _, acc = align_clusters_to_outcome(km["labels"], outcome)
-        label = "полные" if num_levels is None else str(int(num_levels))
-        rows.append(
-            {
-                "rank_levels": label,
-                "selected_count": len(selected),
-                "selected": names,
-                "mean_abs_rho_off_diag": f"{mean_abs:.6f}",
-                "cluster_match_accuracy": f"{acc:.4f}",
-                "kmeans_inertia": f"{km['inertia']:.2f}",
-            }
-        )
-    # with open(DIR / "rank_levels_summary.csv", "w", encoding="utf-8", newline="") as file:
-    #     writer = csv.DictWriter(
-    #         file,
-    #         fieldnames=[
-    #             "rank_levels",
-    #             "selected_count",
-    #             "selected",
-    #             "mean_abs_rho_off_diag",
-    #             "cluster_match_accuracy",
-    #             "kmeans_inertia",
-    #         ],
-    #     )
-    #     writer.writeheader()
-    #     writer.writerows(rows)
-    return rows
-
-
-def print_ranking_mismatch_diagnosis(sweep_rows, target_n):
-    best = None
-    for row in sweep_rows:
-        c = int(row["selected_count"])
-        d = abs(c - target_n)
-        if best is None or d < best[0]:
-            best = (d, row)
-    candidates = [r for r in sweep_rows if int(r["selected_count"]) == target_n]
-    k_ok = ", ".join(r["rank_levels"] for r in candidates) if candidates else "—"
-    print(f"отбор != {target_n}: ближайший K={best[1]['rank_levels']} n={best[1]['selected_count']}")
-    print(f"K с n={target_n}: {k_ok}")
-
-"""
-
-def split_sample_indices(n, train_ratio, seed):
+def split_train_test_stratified_y(y, test_fraction, n_strata, seed):
+    y = np.asarray(y, dtype=float)
+    n = int(y.shape[0])
     rng = np.random.default_rng(seed)
-    indices = np.arange(n)
-    rng.shuffle(indices)
-    split_point = int(n * train_ratio)
-    return indices[:split_point], indices[split_point:]
+    sid, n_strata = _y_strata_quantile_ranks(y, n_strata)
+    buckets = []
+    for h in range(n_strata):
+        ix = np.where(sid == h)[0]
+        if len(ix) == 0:
+            continue
+        ix = ix.copy()
+        rng.shuffle(ix)
+        buckets.append(ix)
+    if not buckets:
+        raise ValueError("empty stratification")
+    sizes = np.array([len(b) for b in buckets], dtype=int)
+    n_te_target = int(round(n * float(test_fraction)))
+    n_te_target = max(1, min(n_te_target, n - 1))
+    caps = np.maximum(0, sizes - 1)
+    ideal = sizes.astype(np.float64) / n * n_te_target
+    n_te = np.minimum(np.floor(ideal).astype(int), caps)
+    deficit = n_te_target - int(n_te.sum())
+    frac = ideal - np.floor(ideal)
+    prio = np.argsort(-frac, kind="mergesort")
+    steps = 0
+    h_max = len(buckets)
+    while deficit > 0 and steps < h_max * n:
+        h = int(prio[steps % h_max])
+        if n_te[h] < caps[h]:
+            n_te[h] += 1
+            deficit -= 1
+        steps += 1
+    if deficit > 0:
+        perm = rng.permutation(n)
+        n_te_alt = max(1, min(n_te_target, n - 1))
+        return perm[n_te_alt:], perm[:n_te_alt]
+    tr_list, te_list = [], []
+    for i, b in enumerate(buckets):
+        nt = int(n_te[i])
+        te_list.append(b[:nt])
+        tr_list.append(b[nt:])
+    return np.concatenate(tr_list), np.concatenate(te_list)
 
 
-def empirical_distribution(sample):
-    sample = np.sort(np.asarray(sample, dtype=float))
-    if len(sample) == 0:
-        return sample, np.array([], dtype=float)
-    f = np.arange(1, len(sample) + 1) / len(sample)
-    return sample, f
+def pick_train_test_stratified_balanced(X, y, test_fraction, n_strata_requested, base_seed, n_tries):
+    X = np.asarray(X, dtype=float)
+    y = np.asarray(y, dtype=float)
+    best_tr, best_te = None, None
+    best_score = float("inf")
+    for t in range(int(n_tries)):
+        seed = int(base_seed) * 1_000_003 + t
+        tr, te = split_train_test_stratified_y(y, test_fraction, n_strata_requested, seed)
+        score = covariate_mean_balance_score(X, tr, te)
+        if score < best_score - 1e-15:
+            best_score = score
+            best_tr, best_te = tr, te
+    return best_tr, best_te, best_score
 
 
-def max_distribution_difference(sample_1, sample_2):
-    sample_1 = np.sort(np.asarray(sample_1, dtype=float))
-    sample_2 = np.sort(np.asarray(sample_2, dtype=float))
-    if len(sample_1) == 0 or len(sample_2) == 0:
-        return float("nan"), float("nan")
-    z = np.sort(np.unique(np.concatenate([sample_1, sample_2])))
-    f1 = np.searchsorted(sample_1, z, side="right") / len(sample_1)
-    f2 = np.searchsorted(sample_2, z, side="right") / len(sample_2)
-    diff = np.abs(f1 - f2)
-    i = int(np.argmax(diff))
-    return float(diff[i]), float(z[i])
-
-
-def estimate_alpha_beta(ksi0, ksi1):
-    ksi0 = np.maximum(np.asarray(ksi0, dtype=float), LOG_FLOOR)
-    ksi1 = np.maximum(np.asarray(ksi1, dtype=float), LOG_FLOOR)
-    lnx = np.log(ksi0)
-    lny = np.log(ksi1)
-    mean_x = float(np.mean(lnx))
-    mean_y = float(np.mean(lny))
-    var_x = float(np.var(lnx, ddof=1)) if len(lnx) > 1 else 0.0
-    var_y = float(np.var(lny, ddof=1)) if len(lny) > 1 else 0.0
-    if var_x <= 0.0:
-        beta = 1.0
-    else:
-        beta = math.sqrt(var_y / var_x)
-    alpha = math.exp(mean_y - beta * mean_x)
-    return alpha, beta
-
-
-def phi(x, alpha, beta):
-    x = np.maximum(np.asarray(x, dtype=float), LOG_FLOOR)
-    return alpha * np.power(x, beta)
-
-
-def evaluate_link_train_test(ksi0, ksi1, train_ratio=0.8, seed=RANDOM_SEED):
-    ksi0 = np.asarray(ksi0, dtype=float)
-    ksi1 = np.asarray(ksi1, dtype=float)
-    n = min(len(ksi0), len(ksi1))
-    ksi0 = ksi0[:n]
-    ksi1 = ksi1[:n]
-    if n < 4:
-        return None
-    tr, te = split_sample_indices(n, train_ratio, seed)
-    k0_tr = ksi0[tr]
-    k1_tr = ksi1[tr]
-    k0_te = ksi0[te]
-    k1_te = ksi1[te]
-    alpha, beta = estimate_alpha_beta(k0_tr, k1_tr)
-    d_raw_tr, z_raw_tr = max_distribution_difference(k0_tr, k1_tr)
-    d_model_tr, z_model_tr = max_distribution_difference(phi(k0_tr, alpha, beta), k1_tr)
-    d_raw_te, z_raw_te = max_distribution_difference(k0_te, k1_te)
-    d_model_te, z_model_te = max_distribution_difference(phi(k0_te, alpha, beta), k1_te)
-    d_raw_all, _ = max_distribution_difference(ksi0, ksi1)
-    d_model_all, _ = max_distribution_difference(phi(ksi0, alpha, beta), ksi1)
-    xm = np.asarray(phi(ksi0, alpha, beta), dtype=float)
-    x1 = np.asarray(ksi1, dtype=float)
-    p_ks_model_full = float(ks_2samp(xm, x1).pvalue)
-    return {
-        "alpha": alpha,
-        "beta": beta,
-        "d_raw_train": d_raw_tr,
-        "z_raw_train": z_raw_tr,
-        "d_model_train": d_model_tr,
-        "z_model_train": z_model_tr,
-        "d_raw_test": d_raw_te,
-        "z_raw_test": z_raw_te,
-        "d_model_test": d_model_te,
-        "z_model_test": z_model_te,
-        "d_raw_full": d_raw_all,
-        "d_model_full": d_model_all,
-        "p_ks_model_full": p_ks_model_full,
-        "improve_train": (d_raw_tr / d_model_tr) if d_model_tr and d_model_tr > 0 else float("inf"),
-        "improve_test": (d_raw_te / d_model_te) if d_model_te and d_model_te > 0 else float("inf"),
-    }
-
-
-def save_link_functions_csv(path, rows):
-    fieldnames = [
-        "from_feature",
-        "to_feature",
-        "spearman_rho",
-        "alpha",
-        "beta",
-        "d_raw_train",
-        "d_model_train",
-        "improve_train",
-        "d_raw_test",
-        "d_model_test",
-        "improve_test",
-        "d_raw_full",
-        "d_model_full",
-        "p_ks_model_full",
-    ]
-    with open(path, "w", encoding="utf-8", newline="") as file:
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({k: row.get(k, "") for k in fieldnames})
-
-
-def save_link_functions_txt(path, rows):
-    lines = []
-    for row in rows:
-        fr = row.get("from_feature", "")
-        to = row.get("to_feature", "")
-        lines.append(f"=== {fr} -> {to} ===")
-        lines.append(f"spearman_rho: {row.get('spearman_rho', '')}")
-        lines.append(f"alpha: {row.get('alpha', '')}")
-        lines.append(f"beta: {row.get('beta', '')}")
-        lines.append(f"d_raw_train: {row.get('d_raw_train', '')}")
-        lines.append(f"d_model_train: {row.get('d_model_train', '')}")
-        lines.append(f"improve_train: {row.get('improve_train', '')}")
-        lines.append(f"d_raw_test: {row.get('d_raw_test', '')}")
-        lines.append(f"d_model_test: {row.get('d_model_test', '')}")
-        lines.append(f"improve_test: {row.get('improve_test', '')}")
-        lines.append(f"d_raw_full: {row.get('d_raw_full', '')}")
-        lines.append(f"d_model_full: {row.get('d_model_full', '')}")
-        lines.append(f"p_ks_model_full: {row.get('p_ks_model_full', '')}")
-        lines.append("")
-    with open(path, "w", encoding="utf-8", newline="\n") as file:
-        file.write("\n".join(lines))
-
-
-def plot_link_ecdf(from_name, to_name, ksi0, ksi1, alpha, beta, path):
-    ksi0 = np.maximum(np.asarray(ksi0, dtype=float), LOG_FLOOR)
-    ksi1 = np.maximum(np.asarray(ksi1, dtype=float), LOG_FLOOR)
-    x0, f0 = empirical_distribution(ksi0)
-    x1, f1 = empirical_distribution(ksi1)
-    xf, ff = empirical_distribution(phi(ksi0, alpha, beta))
-    fig, ax = plt.subplots(figsize=(7, 5))
-    ax.step(x0, f0, where="post", label=f"F({from_name})")
-    ax.step(x1, f1, where="post", label=f"F({to_name})")
-    ax.step(xf, ff, where="post", label=f"F(phi({from_name}))")
-    ax.set_title(f"{from_name} -> {to_name}, alpha={alpha:.4g}, beta={beta:.4f}")
-    ax.set_xlabel("z")
-    ax.set_ylabel("F(z)")
-    ax.grid(True, alpha=0.3)
-    ax.legend()
+def save_glucose_regression_diagnostics(path, y_tr, y_te, models):
+    y_tr = np.asarray(y_tr, dtype=float)
+    y_te = np.asarray(y_te, dtype=float)
+    n_models = len(models)
+    fig, axes = plt.subplots(n_models, 2, figsize=(10, 3.5 * n_models))
+    if n_models == 1:
+        axes = np.reshape(axes, (1, -1))
+    lo = float(min(y_tr.min(), y_te.min()))
+    hi = float(max(y_tr.max(), y_te.max()))
+    pad = 0.03 * (hi - lo + 1e-9)
+    lim_lo, lim_hi = lo - pad, hi + pad
+    for row, (label, ptr, pte) in enumerate(models):
+        ptr = np.asarray(ptr, dtype=float)
+        pte = np.asarray(pte, dtype=float)
+        ax_sc, ax_r = axes[row, 0], axes[row, 1]
+        ax_sc.scatter(y_tr, ptr, alpha=0.4, s=14, c="C0", label="train")
+        ax_sc.scatter(y_te, pte, alpha=0.55, s=18, c="C1", marker="^", label="test", edgecolors="none")
+        ax_sc.plot([lim_lo, lim_hi], [lim_lo, lim_hi], "k--", lw=1.0, label="y = x")
+        ax_sc.set_xlim(lim_lo, lim_hi)
+        ax_sc.set_ylim(lim_lo, lim_hi)
+        ax_sc.set_aspect("equal")
+        ax_sc.set_xlabel("Glucose, факт")
+        ax_sc.set_ylabel("Glucose, предсказание")
+        ax_sc.set_title(label)
+        ax_sc.legend(loc="upper left", fontsize=8)
+        ax_sc.grid(True, alpha=0.3)
+        res_tr = y_tr - ptr
+        res_te = y_te - pte
+        ax_r.scatter(ptr, res_tr, alpha=0.4, s=14, c="C0", label="train")
+        ax_r.scatter(pte, res_te, alpha=0.55, s=18, c="C1", marker="^", label="test", edgecolors="none")
+        ax_r.axhline(0.0, color="k", lw=1.0)
+        ax_r.set_xlabel("Предсказание")
+        ax_r.set_ylabel("Остаток (факт - предсказание)")
+        ax_r.set_title(f"{label}: остатки")
+        ax_r.legend(loc="upper right", fontsize=8)
+        ax_r.grid(True, alpha=0.3)
     fig.tight_layout()
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
-
-
-def link_dependency_confirmed(ev):
-    p = ev["p_ks_model_full"]
-    if not math.isfinite(p):
-        return False
-    return p >= KS_SIGNIFICANCE_LEVEL
-
-
-def format_pair_dependency_report(xi1_name, xi2_name, alpha, beta, confirmed, p_ks):
-    status = "\u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u043b\u0430\u0441\u044c" if confirmed else "\u043d\u0435 \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u043b\u0430\u0441\u044c"
-    return [
-        f"{xi1_name} - {xi2_name}",
-        f"alpha={alpha:.8g}, beta={beta:.8f}",
-        status,
-        "",
-    ]
 
 
 def main():
@@ -593,71 +413,99 @@ def main():
     if not data_csv.is_file():
         raise FileNotFoundError(f"Ожидается файл данных: {data_csv}")
 
-    feature_names, data, _ = load_data(data_csv)
-    coeff_matrix = spearman_correlation_matrix(data, EXPORT_RANK_LEVELS)
-    title_matrix = f"Матрица корреляции по рангам с K={EXPORT_RANK_LEVELS} уровнями"
-    draw_spearman_matrix_table(feature_names, coeff_matrix, DIR / "spearman_matrix.png", title=title_matrix)
-    strength = strength_matrix(coeff_matrix)
-    selected_indices = select_features(strength, SPEARMAN_EDGE_THRESHOLD, feature_names)
-    selected = ", ".join(feature_names[i] for i in selected_indices)
-    print(f"отобранные признаки: {selected}")
-    selected_set = set(selected_indices)
-    non_selected = [idx for idx in range(len(feature_names)) if idx not in selected_set]
-    not_kept = ", ".join(feature_names[i] for i in non_selected)
-    print(f"не отобраны: {not_kept}")
-    cross_pairs = []
-    for s in selected_indices:
-        for n in non_selected:
-            cross_pairs.append((n, s))
-    link_rows = []
-    report_lines = []
-    plots_dir = DIR / "link_ecdf"
-    plots_dir.mkdir(exist_ok=True)
-    confirmed_count = 0
-    for a, b in cross_pairs:
-        ksi0 = data[:, a]
-        ksi1 = data[:, b]
-        ev = evaluate_link_train_test(ksi0, ksi1)
-        if ev is None:
-            continue
-        row = {
-            "from_feature": feature_names[a],
-            "to_feature": feature_names[b],
-            "spearman_rho": f"{float(coeff_matrix[a, b]):.6f}",
-            "alpha": f"{ev['alpha']:.8g}",
-            "beta": f"{ev['beta']:.8f}",
-            "d_raw_train": f"{ev['d_raw_train']:.6f}",
-            "d_model_train": f"{ev['d_model_train']:.6f}",
-            "improve_train": f"{ev['improve_train']:.6f}",
-            "d_raw_test": f"{ev['d_raw_test']:.6f}",
-            "d_model_test": f"{ev['d_model_test']:.6f}",
-            "improve_test": f"{ev['improve_test']:.6f}",
-            "d_raw_full": f"{ev['d_raw_full']:.6f}",
-            "d_model_full": f"{ev['d_model_full']:.6f}",
-            "p_ks_model_full": f"{ev['p_ks_model_full']:.8f}",
-        }
-        link_rows.append(row)
-        alpha = ev["alpha"]
-        beta = ev["beta"]
-        confirmed = link_dependency_confirmed(ev)
-        if confirmed:
-            confirmed_count += 1
-        xi1_name = feature_names[b]
-        xi2_name = feature_names[a]
-        block = format_pair_dependency_report(
-            xi1_name, xi2_name, alpha, beta, confirmed, ev["p_ks_model_full"]
-        )
-        report_lines.extend(block)
-        for line in block:
-            if line:
-                print(line)
-        print()
-        fname = f"{feature_names[a]}__to__{feature_names[b]}.png".replace("/", "_")
-        plot_link_ecdf(feature_names[a], feature_names[b], ksi0, ksi1, alpha, beta, plots_dir / fname)
-    save_link_functions_csv(DIR / "link_functions.csv", link_rows)
-    save_link_functions_txt(DIR / "link_functions.txt", link_rows)
-    (DIR / "pair_link_report.txt").write_text("\n".join(report_lines).rstrip() + "\n", encoding="utf-8")
-    #print(f"KS (p>={KS_SIGNIFICANCE_LEVEL}): подтвердилось {confirmed_count} из {len(link_rows)} направлений")
+    pred_names, X, y = load_glucose_regression(data_csv)
+    ols_full_tag = f"ols_{len(pred_names)}"
+    n_obs = len(y)
+    coeff_6 = spearman_correlation_matrix(X, EXPORT_RANK_LEVELS)
+    strength_6 = strength_matrix(coeff_6)
+    n_sp = spearman_criterion_n(n_obs)
+    sig_mask = spearman_significant_mask(coeff_6, n_sp, SPEARMAN_SIGNIFICANCE_ALPHA)
+    selected_indices = select_features(strength_6, sig_mask, pred_names)
+    selected_names = [pred_names[i] for i in selected_indices]
+    print("Признаки после отбора Spearman:", ", ".join(selected_names))
+    tr, te, balance_score = pick_train_test_stratified_balanced(
+        X,
+        y,
+        TEST_SET_FRACTION,
+        TRAIN_TEST_STRATIFY_BINS,
+        TRAIN_TEST_SPLIT_SEED,
+        TRAIN_TEST_BALANCE_TRIES,
+    )
+    X_tr, X_te = X[tr], X[te]
+    y_tr, y_te = y[tr], y[te]
+    n_tr = int(X_tr.shape[0])
+    n_te = int(X_te.shape[0])
+    mean, std = fit_standardizer(X_tr)
+    X_tr_s = apply_standardizer(X_tr, mean, std)
+    X_te_s = apply_standardizer(X_te, mean, std)
+    w6 = ols_fit(X_tr_s, y_tr)
+    pred_tr_6 = ols_predict(X_tr_s, w6)
+    pred_te_6 = ols_predict(X_te_s, w6)
+    split_rmse, split_mae, split_r2 = metrics_reg(y_te, pred_te_6)
+    print(
+        f"Разбиение train/test: страты по рангам Glucose, баланс средних X (норм.)={balance_score:.6f}, "
+        f"кандидатов={TRAIN_TEST_BALANCE_TRIES}, seed_база={TRAIN_TEST_SPLIT_SEED}, доля test={TEST_SET_FRACTION}; "
+        f"полная OLS на test: R^2={split_r2:.6f}, RMSE={split_rmse:.6f}, MAE={split_mae:.6f}"
+    )
+    X_tr_sel = X_tr[:, selected_indices]
+    X_te_sel = X_te[:, selected_indices]
+    mean_sel, std_sel = fit_standardizer(X_tr_sel)
+    X_tr_ss = apply_standardizer(X_tr_sel, mean_sel, std_sel)
+    X_te_ss = apply_standardizer(X_te_sel, mean_sel, std_sel)
+    w_sel = ols_fit(X_tr_ss, y_tr)
+    pred_tr_sel = ols_predict(X_tr_ss, w_sel)
+    pred_te_sel = ols_predict(X_te_ss, w_sel)
+    n_sel = len(selected_indices)
+    k_pca = min(PCA_COMPONENTS_GLUCOSE, n_sel)
+    Vk = pca_top_components(X_tr_ss, k_pca)
+    Z_tr = X_tr_ss @ Vk.T
+    Z_te = X_te_ss @ Vk.T
+    w_pca = ols_fit(Z_tr, y_tr)
+    pred_tr_pca = ols_predict(Z_tr, w_pca)
+    pred_te_pca = ols_predict(Z_te, w_pca)
+    m_tr_6 = metrics_reg(y_tr, pred_tr_6)
+    m_te_6 = metrics_reg(y_te, pred_te_6)
+    m_tr_sel = metrics_reg(y_tr, pred_tr_sel)
+    m_te_sel = metrics_reg(y_te, pred_te_sel)
+    m_tr_pca = metrics_reg(y_tr, pred_tr_pca)
+    m_te_pca = metrics_reg(y_te, pred_te_pca)
+    reg_plot_path = DIR / "glucose_regression_diagnostics.png"
+    save_glucose_regression_diagnostics(
+        reg_plot_path,
+        y_tr,
+        y_te,
+        [
+            (ols_full_tag, pred_tr_6, pred_te_6),
+            ("OLS (отбор Spearman)", pred_tr_sel, pred_te_sel),
+            (f"OLS + PCA{k_pca}", pred_tr_pca, pred_te_pca),
+        ],
+    )
+    print(f"Графики регрессии Glucose: {reg_plot_path}")
+    print(
+        "Метрики RMSE, MAE и R^2:\n"
+        f"  {ols_full_tag}:               train RMSE={m_tr_6[0]:.6f}, MAE={m_tr_6[1]:.6f}, R^2={m_tr_6[2]:.6f} | "
+        f"test RMSE={m_te_6[0]:.6f}, MAE={m_te_6[1]:.6f}, R^2={m_te_6[2]:.6f}\n"
+        f"  ols_spearman_selected: train RMSE={m_tr_sel[0]:.6f}, MAE={m_tr_sel[1]:.6f}, R^2={m_tr_sel[2]:.6f} | "
+        f"test RMSE={m_te_sel[0]:.6f}, MAE={m_te_sel[1]:.6f}, R^2={m_te_sel[2]:.6f}\n"
+        f"  ols_pca{k_pca}:          train RMSE={m_tr_pca[0]:.6f}, MAE={m_tr_pca[1]:.6f}, R^2={m_tr_pca[2]:.6f} | "
+        f"test RMSE={m_te_pca[0]:.6f}, MAE={m_te_pca[1]:.6f}, R^2={m_te_pca[2]:.6f}"
+    )
+    p_feat = len(pred_names)
+    for i in range(p_feat):
+        for j in range(i + 1, p_feat):
+            rho_sp = float(coeff_6[i, j])
+            _, r_te_i = ranks_work_control_pooled(X_tr, X_te, i)
+            _, r_te_j = ranks_work_control_pooled(X_tr, X_te, j)
+            _, _, ks_ok = kolmogorov_smirnov_pair_stats(r_te_i, r_te_j, KS_SIGNIFICANCE_LEVEL)
+            sp_c = spearman_pair_criteria(rho_sp, n_sp, SPEARMAN_SIGNIFICANCE_ALPHA)
+            ks_status = "подтвердилась" if ks_ok else "не подтвердилась"
+            if sp_c is None:
+                ok_val = "н/д"
+            else:
+                _, _, T_kp, abs_rho = sp_c
+                sp_ok = abs_rho >= T_kp
+                ok_val = "да" if sp_ok else "нет"
+            print(f"{pred_names[i]} — {pred_names[j]}: OK = {ok_val}, КС {ks_status}")
 
 
 if __name__ == "__main__":
